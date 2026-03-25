@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 
 const STORAGE_KEY = 'chatai_chats'
+const DEFAULT_MODEL = 'gpt-4o'
 
 function createChat(name) {
   return {
@@ -8,6 +9,8 @@ function createChat(name) {
     name,
     messages: [],
     createdAt: Date.now(),
+    model: DEFAULT_MODEL,
+    deepMode: false,
   }
 }
 
@@ -16,7 +19,14 @@ function normalizeMessage(msg, index) {
   const role = msg?.role === 'assistant' ? 'bot' : (msg?.role || 'bot')
   const timestamp = msg?.timestamp ?? msg?.createdAt ?? Date.now()
   const id = msg?.id ?? `${Date.now()}-${index}`
-  return { id, role, text, timestamp }
+  const attachments = Array.isArray(msg?.attachments)
+    ? msg.attachments.map(a => ({
+      name: a?.name ?? 'file',
+      size: a?.size ?? 0,
+      type: a?.type ?? 'file',
+    }))
+    : []
+  return { id, role, text, timestamp, attachments }
 }
 
 function normalizeChat(chat) {
@@ -29,6 +39,8 @@ function normalizeChat(chat) {
     name: chat.name || 'Чат 1',
     messages,
     createdAt: chat.createdAt || Date.now(),
+    model: chat.model || DEFAULT_MODEL,
+    deepMode: Boolean(chat.deepMode),
   }
 }
 
@@ -103,6 +115,12 @@ export function useChats() {
     )
   }
 
+  function updateChat(chatId, data) {
+    setChats(prev =>
+      prev.map(c => (c.id === chatId ? { ...c, ...data } : c))
+    )
+  }
+
   return {
     chats,
     activeChat,
@@ -112,5 +130,6 @@ export function useChats() {
     deleteChat,
     renameChat,
     addMessage,
+    updateChat,
   }
 }
