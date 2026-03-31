@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
 import AnchorBar from './AnchorBar.jsx'
 import MessageList from './MessageList.jsx'
+import AnnotationDigest from './AnnotationDigest.jsx'
+import { isAnnotationTag } from './annotationConfig.js'
 
 
 const MOCK_RESPONSES = [
@@ -21,6 +23,7 @@ const DEEP_RESPONSES = [
   'Сделаю короткий разбор и приведу несколько альтернативных подходов.',
   'Окей, погружусь глубже: сначала уточню задачу, затем дам пошаговое решение.',
 ]
+const ANNOTATION_KEY_PREFIX = 'chat_annotations_'
 
 function getMockResponse() {
   return MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)]
@@ -41,6 +44,47 @@ function formatBytes(bytes) {
   return `${value.toFixed(value >= 10 || i === 0 ? 0 : 1)} ${sizes[i]}`
 }
 
+function getAnnotationStorageKey(chatId) {
+  return `${ANNOTATION_KEY_PREFIX}${chatId}`
+}
+
+function normalizeAnnotationRecord(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+
+  const normalized = {}
+  for (const [messageId, value] of Object.entries(raw)) {
+    if (!value || typeof value !== 'object') continue
+    const tags = Array.isArray(value.tags)
+      ? value.tags.filter(isAnnotationTag)
+      : []
+    const note = typeof value.note === 'string' ? value.note.trim() : ''
+    const createdAt = Number.isFinite(value.createdAt) ? value.createdAt : Date.now()
+    if (tags.length > 0 || note) {
+      normalized[String(messageId)] = { tags, note: note || null, createdAt }
+    }
+  }
+  return normalized
+}
+
+function readAnnotations(chatId) {
+  try {
+    const raw = localStorage.getItem(getAnnotationStorageKey(chatId))
+    if (!raw) return {}
+    return normalizeAnnotationRecord(JSON.parse(raw))
+  } catch {
+    return {}
+  }
+}
+
+function writeAnnotations(chatId, annotations) {
+  const normalized = normalizeAnnotationRecord(annotations)
+  if (Object.keys(normalized).length === 0) {
+    localStorage.removeItem(getAnnotationStorageKey(chatId))
+    return
+  }
+  localStorage.setItem(getAnnotationStorageKey(chatId), JSON.stringify(normalized))
+}
+
 export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
   const [input, setInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
@@ -59,10 +103,30 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
       return { id: m.id, text: preview }
     })
 
+  const annotations = useMemo(
+    () => normalizeAnnotationRecord(chat.annotations),
+    [chat.annotations]
+  )
+
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [chat.messages, isTyping])
+
+  useEffect(() => {
+    const stored = readAnnotations(chat.id)
+    if (Object.keys(stored).length > 0 && JSON.stringify(stored) !== JSON.stringify(annotations)) {
+      onUpdateChat?.(chat.id, { annotations: stored })
+      return
+    }
+    if (Object.keys(stored).length === 0 && Object.keys(annotations).length > 0) {
+      writeAnnotations(chat.id, annotations)
+    }
+  }, [chat.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    writeAnnotations(chat.id, annotations)
+  }, [chat.id, annotations])
 
   function scrollToAnchor(msgId) {
     const el = document.getElementById(`msg-${msgId}`)
@@ -71,6 +135,56 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
       el.classList.add('highlight')
       setTimeout(() => el.classList.remove('highlight'), 1500)
     }
+  }
+
+  function getAnnotation(messageId) {
+    return annotations[String(messageId)]
+  }
+
+  function toggleTag(messageId, tag) {
+    if (!isAnnotationTag(tag)) return
+    const id = String(messageId)
+    const current = annotations[id]
+    const currentTags = current?.tags || []
+    const nextTags = currentTags.includes(tag)
+      ? currentTags.filter(t => t !== tag)
+      : [...currentTags, tag]
+
+    const nextAnnotations = { ...annotations }
+    const currentNote = current?.note || null
+    if (nextTags.length === 0 && !currentNote) {
+      delete nextAnnotations[id]
+    } else {
+      nextAnnotations[id] = {
+        tags: nextTags,
+        note: currentNote,
+        createdAt: current?.createdAt ?? Date.now(),
+      }
+    }
+
+    onUpdateChat?.(chat.id, { annotations: nextAnnotations })
+    writeAnnotations(chat.id, nextAnnotations)
+  }
+
+  function setNote(messageId, note) {
+    const id = String(messageId)
+    const cleanNote = (note || '').trim()
+    const current = annotations[id]
+    const currentTags = current?.tags || []
+    const nextAnnotations = { ...annotations }
+
+    if (!cleanNote && currentTags.length === 0) {
+      delete nextAnnotations[id]
+    } else {
+      nextAnnotations[id] = {
+        tags: currentTags,
+        note: cleanNote || null,
+        createdAt: current?.createdAt ?? Date.now(),
+      }
+    }
+
+    onUpdateChat?.(chat.id, { annotations: nextAnnotations })
+    writeAnnotations(chat.id, nextAnnotations)
   }
 
   async function handleSend() {
@@ -208,9 +322,21 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
       </div>
 
       <AnchorBar anchors={anchors} onAnchorClick={scrollToAnchor} />
+      <AnnotationDigest
+        chatName={chat.name}
+        messages={chat.messages}
+        annotations={annotations}
+        onJump={scrollToAnchor}
+      />
 
-      <div className="messages-container" ref={messagesContainerRef}>
-        <MessageList messages={chat.messages} />
+      <div className="messages-container messages" ref={messagesContainerRef}>
+        <MessageList
+          messages={chat.messages}
+          annotations={annotations}
+          toggleTag={toggleTag}
+          setNote={setNote}
+          getAnnotation={getAnnotation}
+        />
         {isTyping && (
           <div className="message message-bot typing">
             <div className="message-role">Бот</div>

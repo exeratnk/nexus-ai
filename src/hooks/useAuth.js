@@ -4,6 +4,7 @@ import {
   register as apiRegister,
   logout as apiLogout,
   getProfile,
+  updateProfile as apiUpdateProfile,
 } from '../api.js'
 
 const ACCESS_KEY = 'access'
@@ -13,6 +14,7 @@ export function useAuth() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [authEvent, setAuthEvent] = useState({ type: 'none', at: 0 })
 
   const access = typeof window !== 'undefined' ? localStorage.getItem(ACCESS_KEY) : null
   const refresh = typeof window !== 'undefined' ? localStorage.getItem(REFRESH_KEY) : null
@@ -25,7 +27,10 @@ export function useAuth() {
       }
       try {
         const profile = await getProfile(access)
-        if (profile?.id) setUser(profile)
+        if (profile?.id) {
+          setUser(profile)
+          setAuthEvent({ type: 'restore', at: Date.now() })
+        }
       } catch {
         // access token is invalid; clear
         localStorage.removeItem(ACCESS_KEY)
@@ -51,6 +56,7 @@ export function useAuth() {
       persistTokens(res.access, res.refresh)
       const profile = await getProfile(res.access)
       setUser(profile)
+      setAuthEvent({ type: 'login', at: Date.now() })
     } catch (e) {
       setError(e.message || 'Ошибка авторизации')
       throw e
@@ -67,6 +73,7 @@ export function useAuth() {
       if (!res?.access) throw new Error(res?.detail || 'Не удалось зарегистрироваться')
       persistTokens(res.access, res.refresh)
       setUser(res.user)
+      setAuthEvent({ type: 'register', at: Date.now() })
     } catch (e) {
       // backend may send validation dict; stringify
       const detail = typeof e?.message === 'string' ? e.message : 'Ошибка регистрации'
@@ -87,8 +94,27 @@ export function useAuth() {
       localStorage.removeItem(ACCESS_KEY)
       localStorage.removeItem(REFRESH_KEY)
       setUser(null)
+      setAuthEvent({ type: 'logout', at: Date.now() })
     }
   }, [access, refresh])
+
+  const handleUpdateProfile = useCallback(async (payload) => {
+    if (!access) {
+      const message = 'Сначала выполните вход'
+      setError(message)
+      throw new Error(message)
+    }
+
+    setError('')
+    try {
+      const updated = await apiUpdateProfile(access, payload)
+      setUser(updated)
+      return updated
+    } catch (e) {
+      setError(e.message || 'Не удалось обновить профиль')
+      throw e
+    }
+  }, [access])
 
   return {
     user,
@@ -96,9 +122,11 @@ export function useAuth() {
     error,
     accessToken: access,
     refreshToken: refresh,
+    authEvent,
     login: handleLogin,
     register: handleRegister,
     logout: handleLogout,
+    updateProfile: handleUpdateProfile,
     setError,
   }
 }

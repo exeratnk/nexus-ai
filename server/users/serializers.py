@@ -1,6 +1,6 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import User
+from .models import User, Chat
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -26,3 +26,15 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 'bio', 'avatar', 'date_joined', 'updated')
         read_only_fields = ('id', 'date_joined', 'updated')
+
+
+class ChatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Chat
+        fields = ('id', 'name', 'messages', 'model', 'deep_mode', 'created', 'updated')
+        read_only_fields = ('id', 'created', 'updated')
+
+    def validate_messages(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError('messages должно быть массивом.')
+        return value

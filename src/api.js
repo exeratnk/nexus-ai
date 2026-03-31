@@ -1,4 +1,6 @@
 const BASE = 'http://localhost:8000/api/auth'
+const API_ORIGIN = new URL(BASE).origin
+const CHATS_BASE = `${BASE}/chats`
 
 function extractError(data, fallback) {
   if (!data) return fallback
@@ -62,13 +64,21 @@ export async function getProfile(accessToken) {
 
 // Обновить профиль
 export async function updateProfile(accessToken, data) {
+  const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+  const headers = { 'Authorization': `Bearer ${accessToken}` }
+  if (!isFormData) headers['Content-Type'] = 'application/json'
+
   return request(`${BASE}/profile/`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}` },
-    body: JSON.stringify(data),
+    headers,
+    body: isFormData ? data : JSON.stringify(data),
   })
+}
+
+export function toAbsoluteMediaUrl(url) {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  return `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
 // Выход
@@ -83,4 +93,39 @@ export async function logout(accessToken, refreshToken) {
   })
   localStorage.removeItem('access')
   localStorage.removeItem('refresh')
+}
+
+export async function getChats(accessToken) {
+  return request(`${CHATS_BASE}/`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+}
+
+export async function createChat(accessToken, data) {
+  return request(`${CHATS_BASE}/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateChat(accessToken, chatId, data) {
+  return request(`${CHATS_BASE}/${chatId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteChat(accessToken, chatId) {
+  return request(`${CHATS_BASE}/${chatId}/`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
 }

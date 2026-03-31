@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User
-from .serializers import RegisterSerializer, ProfileSerializer
+from .models import User, Chat
+from .serializers import RegisterSerializer, ProfileSerializer, ChatSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -48,3 +48,24 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class ChatListCreateView(generics.ListCreateAPIView):
+    """GET / POST /api/auth/chats/"""
+    serializer_class = ChatSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        return Chat.objects.filter(user=self.request.user).order_by('created')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class ChatDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """GET / PATCH / DELETE /api/auth/chats/<id>/"""
+    serializer_class = ChatSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        return Chat.objects.filter(user=self.request.user)
