@@ -94,7 +94,7 @@ export default function App() {
             title={focusButtonLabel}
             aria-label={focusButtonLabel}
           >
-            {isFocus ? '✕' : '⊞'}
+            {isFocus ? '✕' : '𖦏'}
           </button>
           <button className="btn-ghost small" onClick={toggleTheme}>
             {isDark ? '☀️ Светлая' : '🌙 Тёмная'}

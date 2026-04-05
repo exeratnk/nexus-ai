@@ -1,5 +1,5 @@
-const BASE = 'http://localhost:8000/api/auth'
-const API_ORIGIN = new URL(BASE).origin
+const BASE = 'http://127.0.0.1:8000/api/auth'
+const API_ORIGIN = 'http://127.0.0.1:8000'
 const CHATS_BASE = `${BASE}/chats`
 
 function extractError(data, fallback) {
@@ -30,8 +30,7 @@ async function request(url, options = {}) {
     return data
   } catch (e) {
     if (e.name === 'TypeError') {
-      // сетевые ошибки fetch (например, сервер не поднят)
-      throw new Error('Сервер недоступен. Проверьте, что backend запущен на http://localhost:8000')
+      throw new Error('Сервер недоступен. Проверьте, что backend запущен на http://127.0.0.1:8000')
     }
     throw e
   }
@@ -78,6 +77,7 @@ export async function updateProfile(accessToken, data) {
 export function toAbsoluteMediaUrl(url) {
   if (!url) return ''
   if (/^https?:\/\//i.test(url)) return url
+  if (!API_ORIGIN) return url
   return `${API_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`
 }
 

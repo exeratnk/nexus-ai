@@ -3,9 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "dev": "vite",
-    "dev:server": "python3 server/manage.py runserver 8000",
+    "dev:server": "node scripts/run-backend.mjs",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "test:backend": "node scripts/run-backend.mjs test users",
     "build": "vite build",
     "preview": "vite preview"
   },
