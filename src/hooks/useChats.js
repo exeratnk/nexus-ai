@@ -1,14 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import {
+  getChats as apiGetChats,
+  createChat as apiCreateChat,
+  updateChat as apiUpdateChat,
+  deleteChat as apiDeleteChat,
+} from '../api.js'
 
-const STORAGE_KEY = 'chatai_chats'
+const GUEST_STORAGE_KEY = 'chatai_chats'
+const DEFAULT_MODEL = 'gpt-4o'
 
 function createChat(name) {
   return {
-    id: Date.now().toString(),
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name,
     messages: [],
     createdAt: Date.now(),
+    model: DEFAULT_MODEL,
+    deepMode: false,
+    annotations: {},
   }
+}
+
+function normalizeAnnotationRecord(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const normalized = {}
+  for (const [messageId, value] of Object.entries(raw)) {
+    if (!value || typeof value !== 'object') continue
+    const tags = Array.isArray(value.tags)
+      ? value.tags.filter(tag => tag === 'important' || tag === 'save' || tag === 'check')
+      : []
+    const note = typeof value.note === 'string' ? value.note : null
+    const createdAt = Number.isFinite(value.createdAt) ? value.createdAt : Date.now()
+    if (tags.length > 0 || (note && note.trim())) {
+      normalized[String(messageId)] = { tags, note: note && note.trim() ? note : null, createdAt }
+    }
+  }
+  return normalized
 }
 
 function normalizeMessage(msg, index) {
@@ -16,7 +43,14 @@ function normalizeMessage(msg, index) {
   const role = msg?.role === 'assistant' ? 'bot' : (msg?.role || 'bot')
   const timestamp = msg?.timestamp ?? msg?.createdAt ?? Date.now()
   const id = msg?.id ?? `${Date.now()}-${index}`
-  return { id, role, text, timestamp }
+  const attachments = Array.isArray(msg?.attachments)
+    ? msg.attachments.map(a => ({
+      name: a?.name ?? 'file',
+      size: a?.size ?? 0,
+      type: a?.type ?? 'file',
+    }))
+    : []
+  return { id, role, text, timestamp, attachments }
 }
 
 function normalizeChat(chat) {
@@ -24,93 +58,242 @@ function normalizeChat(chat) {
   const messages = Array.isArray(chat.messages)
     ? chat.messages.map((m, i) => normalizeMessage(m, i))
     : []
+
+  const createdAt = chat.createdAt
+    ? Number(chat.createdAt)
+    : (chat.created ? Date.parse(chat.created) : Date.now())
+
   return {
-    id: chat.id || Date.now().toString(),
+    id: String(chat.id || `local-${Date.now()}`),
     name: chat.name || 'Чат 1',
     messages,
-    createdAt: chat.createdAt || Date.now(),
+    createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+    model: chat.model || DEFAULT_MODEL,
+    deepMode: Boolean(chat.deep_mode ?? chat.deepMode),
+    annotations: normalizeAnnotationRecord(chat.annotations),
   }
 }
 
-export function useChats() {
-  const [chats, setChats] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.length > 0) return parsed.map(normalizeChat)
-      }
-    } catch {}
-    return [createChat('Чат 1')]
-  })
+function readGuestChatsFromStorage() {
+  try {
+    const saved = localStorage.getItem(GUEST_STORAGE_KEY)
+    if (!saved) return []
+    const parsed = JSON.parse(saved)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(normalizeChat)
+  } catch {
+    return []
+  }
+}
 
-  const [activeChatId, setActiveChatId] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (parsed.length > 0) return parsed[0].id
-      }
-    } catch {}
-    return null
-  })
+function saveGuestChatsToStorage(chats) {
+  localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(chats))
+}
 
-  // Sync activeChatId if chats loaded from storage
+function toApiPayload(chat) {
+  return {
+    name: chat.name || 'Чат',
+    messages: Array.isArray(chat.messages) ? chat.messages : [],
+    model: chat.model || DEFAULT_MODEL,
+    deep_mode: Boolean(chat.deepMode),
+  }
+}
+
+export function useChats({ user, accessToken, authEvent }) {
+  const isAuthenticated = Boolean(user?.id && accessToken)
+  const [chats, setChats] = useState([createChat('Чат 1')])
+  const [activeChatId, setActiveChatId] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const chatsRef = useRef(chats)
+
   useEffect(() => {
-    if (!activeChatId && chats.length > 0) {
-      setActiveChatId(chats[0].id)
-    }
-  }, [])
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(chats))
+    chatsRef.current = chats
   }, [chats])
 
-  const activeChat = chats.find(c => c.id === activeChatId) || chats[0]
+  const refreshRemoteChats = useCallback(async () => {
+    const remote = await apiGetChats(accessToken)
+    if (!Array.isArray(remote)) return []
+    return remote.map(normalizeChat)
+  }, [accessToken])
 
-  function addChat() {
-    const newChat = createChat(`Чат ${chats.length + 1}`)
-    setChats(prev => [...prev, newChat])
-    setActiveChatId(newChat.id)
+  useEffect(() => {
+    let cancelled = false
+
+    async function bootstrap() {
+      setLoading(true)
+
+      if (!isAuthenticated) {
+        const guestChats = readGuestChatsFromStorage()
+        const initial = guestChats.length > 0 ? guestChats : [createChat('Чат 1')]
+        if (cancelled) return
+        setChats(initial)
+        setActiveChatId(prev => (
+          prev && initial.some(c => String(c.id) === String(prev))
+            ? String(prev)
+            : initial[0]?.id || null
+        ))
+        setLoading(false)
+        return
+      }
+
+      try {
+        let remoteChats = await refreshRemoteChats()
+        const shouldMigrateGuestChats = authEvent?.type === 'register'
+
+        const guestChats = readGuestChatsFromStorage()
+        if (shouldMigrateGuestChats && guestChats.length > 0) {
+          for (const guestChat of guestChats) {
+            await apiCreateChat(accessToken, toApiPayload(guestChat))
+          }
+          localStorage.removeItem(GUEST_STORAGE_KEY)
+          remoteChats = await refreshRemoteChats()
+        }
+
+        if (cancelled) return
+        setChats(remoteChats)
+        setActiveChatId(prev => (
+          prev && remoteChats.some(c => String(c.id) === String(prev))
+            ? String(prev)
+            : remoteChats[0]?.id || null
+        ))
+      } catch (e) {
+        if (!cancelled) {
+          console.error('Не удалось загрузить чаты:', e)
+          const fallback = []
+          setChats(fallback)
+          setActiveChatId(null)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    bootstrap()
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, accessToken, refreshRemoteChats, user?.id, authEvent?.type, authEvent?.at])
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      saveGuestChatsToStorage(chats)
+    }
+  }, [chats, isAuthenticated])
+
+  const activeChat = useMemo(
+    () => chats.find(c => String(c.id) === String(activeChatId)) || chats[0] || null,
+    [chats, activeChatId]
+  )
+
+  async function addChat() {
+    if (!isAuthenticated) {
+      setChats(prev => {
+        const newChat = createChat(`Чат ${prev.length + 1}`)
+        setActiveChatId(newChat.id)
+        return [...prev, newChat]
+      })
+      return
+    }
+
+    try {
+      const nextName = `Чат ${chatsRef.current.length + 1}`
+      const created = await apiCreateChat(accessToken, toApiPayload(createChat(nextName)))
+      const normalized = normalizeChat(created)
+      setChats(prev => [...prev, normalized])
+      setActiveChatId(normalized.id)
+    } catch (e) {
+      console.error('Не удалось создать чат:', e)
+    }
   }
 
-  function deleteChat(id) {
-    setChats(prev => {
-      const updated = prev.filter(c => c.id !== id)
-      if (updated.length === 0) {
-        const fresh = createChat('Чат 1')
-        setActiveChatId(fresh.id)
-        return [fresh]
-      }
-      if (activeChatId === id) {
-        setActiveChatId(updated[0].id)
-      }
-      return updated
-    })
+  async function deleteChat(id) {
+    const chatId = String(id)
+
+    if (!isAuthenticated) {
+      setChats(prev => {
+        const updated = prev.filter(c => String(c.id) !== chatId)
+        if (updated.length === 0) {
+          const fresh = createChat('Чат 1')
+          setActiveChatId(fresh.id)
+          return [fresh]
+        }
+        if (String(activeChatId) === chatId) {
+          setActiveChatId(updated[0].id)
+        }
+        return updated
+      })
+      return
+    }
+
+    try {
+      await apiDeleteChat(accessToken, chatId)
+      const refreshed = await refreshRemoteChats()
+
+      setChats(refreshed)
+      setActiveChatId(prev => (
+        prev && refreshed.some(c => String(c.id) === String(prev))
+          ? String(prev)
+          : refreshed[0]?.id || null
+      ))
+    } catch (e) {
+      console.error('Не удалось удалить чат:', e)
+    }
   }
 
   function renameChat(id, name) {
-    setChats(prev => prev.map(c => c.id === id ? { ...c, name } : c))
+    const chatId = String(id)
+    setChats(prev => prev.map(c => (String(c.id) === chatId ? { ...c, name } : c)))
+
+    if (!isAuthenticated) return
+
+    apiUpdateChat(accessToken, chatId, { name }).catch(e => {
+      console.error('Не удалось переименовать чат:', e)
+    })
   }
 
   function addMessage(chatId, message) {
-    setChats(prev =>
-      prev.map(c =>
-        c.id === chatId
-          ? { ...c, messages: [...c.messages, message] }
-          : c
-      )
-    )
+    const id = String(chatId)
+    const current = chatsRef.current.find(c => String(c.id) === id)
+    if (!current) return
+
+    const nextMessages = [...current.messages, message]
+    setChats(prev => prev.map(c => (String(c.id) === id ? { ...c, messages: nextMessages } : c)))
+
+    if (!isAuthenticated) return
+
+    apiUpdateChat(accessToken, id, { messages: nextMessages }).catch(e => {
+      console.error('Не удалось сохранить сообщение:', e)
+    })
+  }
+
+  function updateChat(chatId, data) {
+    const id = String(chatId)
+    setChats(prev => prev.map(c => (String(c.id) === id ? { ...c, ...data } : c)))
+
+    if (!isAuthenticated) return
+
+    const payload = {}
+    if (Object.prototype.hasOwnProperty.call(data, 'name')) payload.name = data.name
+    if (Object.prototype.hasOwnProperty.call(data, 'model')) payload.model = data.model
+    if (Object.prototype.hasOwnProperty.call(data, 'deepMode')) payload.deep_mode = Boolean(data.deepMode)
+    if (Object.prototype.hasOwnProperty.call(data, 'messages')) payload.messages = data.messages
+    if (Object.keys(payload).length === 0) return
+
+    apiUpdateChat(accessToken, id, payload).catch(e => {
+      console.error('Не удалось обновить чат:', e)
+    })
   }
 
   return {
     chats,
     activeChat,
     activeChatId,
+    loading,
     setActiveChatId,
     addChat,
     deleteChat,
     renameChat,
     addMessage,
+    updateChat,
   }
 }
