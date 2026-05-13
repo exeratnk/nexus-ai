@@ -8,9 +8,14 @@ import { useAuth } from './hooks/useAuth.js'
 import { useTheme } from './hooks/useTheme.js'
 import { toAbsoluteMediaUrl } from './api.js'
 import {
+  EditIcon,
+  FolderIcon,
   FocusIcon,
   LogoutIcon,
+  MessageIcon,
   MoonIcon,
+  PanelLeftOpenIcon,
+  SearchIcon,
   SettingsIcon,
   SparkIcon,
   SunIcon,
@@ -21,6 +26,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   const [isFocus, setIsFocus] = useState(false)
+  const [isSidebarHidden, setIsSidebarHidden] = useState(false)
   const { toggleTheme, isDark } = useTheme()
   const {
     user,
@@ -54,10 +60,14 @@ export default function App() {
   }, [])
 
   const {
+    folders,
     chats,
     activeChat,
     activeChatId,
     loading: chatsLoading,
+    addFolder,
+    renameFolder,
+    deleteFolder,
     setActiveChatId,
     addChat,
     deleteChat,
@@ -161,15 +171,77 @@ export default function App() {
         </button>
       </header>
 
-      <div className="app">
-        <Sidebar
-          chats={chats}
-          activeChatId={activeChatId}
-          onSelect={setActiveChatId}
-          onAdd={addChat}
-          onDelete={deleteChat}
-          onRename={renameChat}
-        />
+      <div className={`app ${isSidebarHidden ? 'sidebar-collapsed' : ''}`}>
+        {isSidebarHidden && !isFocus && (
+          <aside className="sidebar-rail" aria-label="Свернутая боковая панель">
+            <div className="sidebar-rail-top">
+              <button
+                type="button"
+                className="sidebar-rail-toggle glass-shimmer"
+                onClick={() => setIsSidebarHidden(false)}
+                aria-label="Открыть боковую панель"
+                title="Открыть боковую панель"
+              >
+                <PanelLeftOpenIcon size={18} />
+              </button>
+
+              <div className="sidebar-rail-actions">
+                <button
+                  type="button"
+                  className="sidebar-rail-btn glass-shimmer"
+                  onClick={addChat}
+                  aria-label="Новый чат"
+                  title="Новый чат"
+                >
+                  <EditIcon size={20} />
+                </button>
+                <button
+                  type="button"
+                  className="sidebar-rail-btn glass-shimmer"
+                  onClick={() => setIsSidebarHidden(false)}
+                  aria-label="Поиск чатов"
+                  title="Поиск чатов"
+                >
+                  <SearchIcon size={20} />
+                </button>
+                <button
+                  type="button"
+                  className="sidebar-rail-btn glass-shimmer"
+                  onClick={() => setIsSidebarHidden(false)}
+                  aria-label="Проекты"
+                  title="Проекты"
+                >
+                  <FolderIcon size={20} />
+                </button>
+                <button
+                  type="button"
+                  className="sidebar-rail-btn glass-shimmer"
+                  onClick={() => setIsSidebarHidden(false)}
+                  aria-label="История диалогов"
+                  title="История диалогов"
+                >
+                  <MessageIcon size={20} />
+                </button>
+              </div>
+            </div>
+          </aside>
+        )}
+
+        {!isSidebarHidden && (
+          <Sidebar
+            folders={folders}
+            chats={chats}
+            activeChatId={activeChatId}
+            onHide={() => setIsSidebarHidden(true)}
+            onSelect={setActiveChatId}
+            onAdd={addChat}
+            onAddFolder={addFolder}
+            onRenameFolder={renameFolder}
+            onDeleteFolder={deleteFolder}
+            onDelete={deleteChat}
+            onRename={renameChat}
+          />
+        )}
         <div className="chat-col">
           {isFocus && (
             <div className="focus-toolbar" role="toolbar" aria-label="Панель режима фокуса">
@@ -189,6 +261,7 @@ export default function App() {
             <ChatWindow
               key={activeChat.id}
               chat={activeChat}
+              folders={folders}
               onAddMessage={addMessage}
               onUpdateChat={updateChat}
               isFocus={isFocus}

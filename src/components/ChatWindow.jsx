@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
 import AnchorBar from './AnchorBar.jsx'
-import MessageList from './MessageList.jsx'
 import AnnotationDigest from './AnnotationDigest.jsx'
+import MessageList from './MessageList.jsx'
 import { isAnnotationTag } from './annotationConfig.js'
 import {
   AttachIcon,
   SendIcon,
+  SkillIcon,
   SparkIcon,
 } from './GlassIcons.jsx'
 
@@ -34,6 +35,7 @@ const DEEP_RESPONSES = [
   'Окей, погружусь глубже: сначала уточню задачу, затем дам пошаговое решение.',
 ]
 const ANNOTATION_KEY_PREFIX = 'chat_annotations_'
+const COMPOSER_MIN_HEIGHT = 44
 
 function getMockResponse() {
   return MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)]
@@ -95,13 +97,16 @@ function writeAnnotations(chatId, annotations) {
   localStorage.setItem(getAnnotationStorageKey(chatId), JSON.stringify(normalized))
 }
 
-export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }) {
+export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, isFocus }) {
   const [input, setInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [isTyping, setIsTyping] = useState(false)
+  const [skillInput, setSkillInput] = useState('')
+  const [isAnnotationPopoverOpen, setIsAnnotationPopoverOpen] = useState(false)
   const messagesContainerRef = useRef(null)
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
+  const annotationPopoverRef = useRef(null)
 
 
   const anchors = chat.messages
@@ -115,6 +120,10 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }
   const annotations = useMemo(
     () => normalizeAnnotationRecord(chat.annotations),
     [chat.annotations]
+  )
+  const annotationCount = useMemo(
+    () => Object.keys(annotations).length,
+    [annotations]
   )
 
 
@@ -143,6 +152,30 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }
     writeAnnotations(chat.id, annotations)
   }, [chat.id, annotations])
 
+  useEffect(() => {
+    if (!isAnnotationPopoverOpen) return
+
+    function handlePointerDown(event) {
+      if (!annotationPopoverRef.current?.contains(event.target)) {
+        setIsAnnotationPopoverOpen(false)
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setIsAnnotationPopoverOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isAnnotationPopoverOpen])
+
   function scrollToAnchor(msgId) {
     const el = document.getElementById(`msg-${msgId}`)
     const container = messagesContainerRef.current
@@ -158,6 +191,7 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }
       behavior: 'smooth',
     })
 
+    setIsAnnotationPopoverOpen(false)
     el.classList.add('highlight')
     setTimeout(() => el.classList.remove('highlight'), 1500)
   }
@@ -218,7 +252,7 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }
 
     setInput('')
     if (textareaRef.current) {
-      textareaRef.current.style.height = '42px'
+      textareaRef.current.style.height = `${COMPOSER_MIN_HEIGHT}px`
     }
     setSelectedFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
@@ -291,6 +325,28 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }
     onUpdateChat?.(chat.id, { model: e.target.value })
   }
 
+  function handleFolderChange(e) {
+    onUpdateChat?.(chat.id, { folderId: e.target.value || null })
+  }
+
+  function addSkill() {
+    const clean = skillInput.trim()
+    if (!clean) return
+    onUpdateChat?.(chat.id, { skills: [...(chat.skills || []), clean] })
+    setSkillInput('')
+  }
+
+  function removeSkill(skillToRemove) {
+    onUpdateChat?.(chat.id, {
+      skills: (chat.skills || []).filter(skill => skill !== skillToRemove),
+    })
+  }
+
+  function toggleAnnotationPopover() {
+    if (annotationCount === 0) return
+    setIsAnnotationPopoverOpen(prev => !prev)
+  }
+
   function applyPrompt(prompt) {
     setInput(prompt)
     requestAnimationFrame(() => {
@@ -329,6 +385,22 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }
 
         <div className="chat-controls">
           <div className="control model-control">
+            <span className="control-label">Папка</span>
+            <div className="select-wrap">
+              <select
+                className="select-model"
+                value={chat.folderId || ''}
+                onChange={handleFolderChange}
+              >
+                <option value="">Без папки</option>
+                {folders.map(folder => (
+                  <option key={folder.id} value={folder.id}>{folder.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="control model-control">
             <span className="control-label">Модель</span>
             <div className="select-wrap">
               <select
@@ -354,13 +426,59 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }
           </label>
         </div>
 
-        <AnchorBar anchors={anchors} onAnchorClick={scrollToAnchor} />
-        <AnnotationDigest
-          chatName={chat.name}
-          messages={chat.messages}
-          annotations={annotations}
-          onJump={scrollToAnchor}
-        />
+        <div className={`skill-panel ${(chat.skills || []).length > 0 ? 'has-skills' : 'is-empty'}`}>
+          <div className="skill-panel-header">
+            <span className="chat-eyebrow">
+              <SkillIcon size={13} />
+              Скиллы проекта
+            </span>
+            <span className="skill-count">{chat.skills?.length || 0}</span>
+          </div>
+          <div className="skill-input-row">
+            <label className="skill-input-shell">
+              <SkillIcon size={15} />
+              <input
+                type="text"
+                className="skill-input"
+                placeholder="Добавить skill, например React, Prompting, UX Research"
+                value={skillInput}
+                onChange={e => setSkillInput(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    addSkill()
+                  }
+                }}
+              />
+            </label>
+            <button type="button" className="btn-ghost small glass-shimmer" onClick={addSkill}>
+              Добавить
+            </button>
+          </div>
+          {(chat.skills || []).length > 0 && (
+            <div className="skill-chip-list">
+              {(chat.skills || []).map(skill => (
+                <button
+                  key={skill}
+                  type="button"
+                  className="skill-chip glass-shimmer"
+                  onClick={() => removeSkill(skill)}
+                  title={`Удалить skill ${skill}`}
+                >
+                  <SkillIcon size={12} />
+                  <span>{skill}</span>
+                  <span className="skill-chip-close">×</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {anchors.length > 0 && (
+          <div className="chat-meta-rail">
+            <AnchorBar anchors={anchors} onAnchorClick={scrollToAnchor} />
+          </div>
+        )}
       </div>
 
       <div className="messages-container" ref={messagesContainerRef}>
@@ -397,6 +515,34 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }
             <button className="chip-close glass-shimmer" onClick={removeFile} type="button" aria-label="Убрать файл">×</button>
           </div>
         )}
+        <div className="input-area-tools">
+          <div className="annotation-popover-wrap" ref={annotationPopoverRef}>
+            <button
+              type="button"
+              className={`btn-ghost small glass-shimmer annotation-toggle ${isAnnotationPopoverOpen ? 'active' : ''}`}
+              onClick={toggleAnnotationPopover}
+              disabled={annotationCount === 0}
+              aria-expanded={isAnnotationPopoverOpen}
+              aria-haspopup="dialog"
+              title={annotationCount > 0 ? 'Открыть сохраненные аннотации' : 'Сохранённых аннотаций пока нет'}
+            >
+              <SparkIcon size={14} />
+              <span>Аннотации</span>
+              <span className="annotation-toggle-count">{annotationCount}</span>
+            </button>
+
+            {isAnnotationPopoverOpen && (
+              <div className="annotation-popover" role="dialog" aria-label="Сохраненные аннотации">
+                <AnnotationDigest
+                  chatName={chat.name}
+                  messages={chat.messages}
+                  annotations={annotations}
+                  onJump={scrollToAnchor}
+                />
+              </div>
+            )}
+          </div>
+        </div>
         <div className="input-shell">
           <button
             className="composer-tool glass-shimmer"

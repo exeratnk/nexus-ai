@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, Chat
-from .serializers import RegisterSerializer, ProfileSerializer, ChatSerializer
+from .models import User, Chat, ProjectFolder
+from .serializers import RegisterSerializer, ProfileSerializer, ChatSerializer, ProjectFolderSerializer
 
 
 class RegisterView(generics.CreateAPIView):
@@ -48,6 +48,31 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class ProjectFolderListCreateView(generics.ListCreateAPIView):
+    """GET / POST /api/auth/folders/"""
+    serializer_class = ProjectFolderSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        return ProjectFolder.objects.filter(user=self.request.user).order_by('created')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class ProjectFolderDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """GET / PATCH / DELETE /api/auth/folders/<id>/"""
+    serializer_class = ProjectFolderSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        return ProjectFolder.objects.filter(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        Chat.objects.filter(user=self.request.user, folder=instance).update(folder=None)
+        instance.delete()
 
 
 class ChatListCreateView(generics.ListCreateAPIView):

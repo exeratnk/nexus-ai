@@ -5,17 +5,19 @@ export default function AnchorBar({ anchors, onAnchorClick }) {
 
   return (
     <div className="anchor-bar">
-      {anchors.map((anchor, index) => (
-        <button
-          key={anchor.id}
-          className="anchor-tab glass-shimmer"
-          title={anchor.text}
-          onClick={() => onAnchorClick(anchor.id)}
-        >
-          <span className="anchor-num">{index + 1}</span>
-          <span className="anchor-label">{anchor.text}</span>
-        </button>
-      ))}
+      <div className="anchor-bar-scroll">
+        {anchors.map((anchor, index) => (
+          <button
+            key={anchor.id}
+            className="anchor-tab glass-shimmer"
+            title={anchor.text}
+            onClick={() => onAnchorClick(anchor.id)}
+          >
+            <span className="anchor-num">{index + 1}</span>
+            <span className="anchor-label">{anchor.text}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

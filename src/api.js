@@ -1,6 +1,7 @@
 const BASE = 'http://127.0.0.1:8000/api/auth'
 const API_ORIGIN = 'http://127.0.0.1:8000'
 const CHATS_BASE = `${BASE}/chats`
+const FOLDERS_BASE = `${BASE}/folders`
 
 function extractError(data, fallback) {
   if (!data) return fallback
@@ -97,6 +98,41 @@ export async function logout(accessToken, refreshToken) {
 
 export async function getChats(accessToken) {
   return request(`${CHATS_BASE}/`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+}
+
+export async function getFolders(accessToken) {
+  return request(`${FOLDERS_BASE}/`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+}
+
+export async function createFolder(accessToken, data) {
+  return request(`${FOLDERS_BASE}/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateFolder(accessToken, folderId, data) {
+  return request(`${FOLDERS_BASE}/${folderId}/`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(data),
+  })
+}
+
+export async function deleteFolder(accessToken, folderId) {
+  return request(`${FOLDERS_BASE}/${folderId}/`, {
+    method: 'DELETE',
     headers: { 'Authorization': `Bearer ${accessToken}` },
   })
 }

@@ -84,14 +84,14 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
-CORS_ALLOWED_ORIGINS = [
-    'http://127.0.0.1:5173',
-    'http://localhost:5173',
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^http://127\.0\.0\.1:\d+$',
+    r'^http://localhost:\d+$',
 ]
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = [
-    'http://127.0.0.1:5173',
-    'http://localhost:5173',
+CSRF_TRUSTED_ORIGIN_REGEXES = [
+    r'^http://127\.0\.0\.1:\d+$',
+    r'^http://localhost:\d+$',
 ]
 
 LANGUAGE_CODE = 'ru-ru'

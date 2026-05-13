@@ -50,6 +50,27 @@ if (!python) {
 
 const args = process.argv.slice(2)
 const manageArgs = args.length > 0 ? args : ['runserver', '127.0.0.1:8000']
+const isRunserverCommand = manageArgs[0] === 'runserver'
+
+function runManageSync(extraArgs) {
+  const result = spawnSync(
+    python.command,
+    [...python.prefix, managePy, ...extraArgs],
+    {
+      cwd: rootDir,
+      stdio: 'inherit',
+    }
+  )
+
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1)
+  }
+}
+
+if (isRunserverCommand) {
+  console.log('Синхронизирую базу данных...')
+  runManageSync(['migrate', '--noinput'])
+}
 
 const child = spawn(
   python.command,

@@ -53,6 +53,24 @@ export function MessageIcon(props) {
   )
 }
 
+export function FolderIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="M3.8 7.5h5l1.6 1.8h9.8v7.9a2 2 0 0 1-2 2H5.8a2 2 0 0 1-2-2Z" />
+      <path d="M3.8 7.8V6.7a1.9 1.9 0 0 1 1.9-1.9H10l1.6 1.8h6.6a1.9 1.9 0 0 1 1.9 1.9v.8" />
+    </Icon>
+  )
+}
+
+export function SkillIcon(props) {
+  return (
+    <Icon {...props}>
+      <path d="m8 4.8 1.3 2.6 2.9.4-2.1 2 .5 2.8L8 11.3l-2.6 1.3.5-2.8-2.1-2 2.9-.4Z" />
+      <path d="M15.5 13.2 17 16l3 .4-2.2 2 .5 2.8L15.5 20l-2.8 1.2.5-2.8-2.2-2 3-.4Z" />
+    </Icon>
+  )
+}
+
 export function EditIcon(props) {
   return (
     <Icon {...props}>
@@ -136,6 +154,26 @@ export function LogoutIcon(props) {
     <Icon {...props}>
       <path d="M10 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H10" />
       <path d="M15 8l4 4-4 4M19 12H9" />
+    </Icon>
+  )
+}
+
+export function PanelLeftCloseIcon(props) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <path d="M9 4.8v14.4" />
+      <path d="m14.7 9.2-3 2.8 3 2.8" />
+    </Icon>
+  )
+}
+
+export function PanelLeftOpenIcon(props) {
+  return (
+    <Icon {...props}>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <path d="M9 4.8v14.4" />
+      <path d="m12 9.2 3 2.8-3 2.8" />
     </Icon>
   )
 }

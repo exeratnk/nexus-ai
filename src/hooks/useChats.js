@@ -4,9 +4,15 @@ import {
   createChat as apiCreateChat,
   updateChat as apiUpdateChat,
   deleteChat as apiDeleteChat,
+  getFolders as apiGetFolders,
+  createFolder as apiCreateFolder,
+  updateFolder as apiUpdateFolder,
+  deleteFolder as apiDeleteFolder,
 } from '../api.js'
 
-const GUEST_STORAGE_KEY = 'chatai_chats'
+const GUEST_STORAGE_KEY = 'chatai_workspace_v2'
+const LEGACY_GUEST_STORAGE_KEY = 'chatai_chats'
+const UI_STORAGE_PREFIX = 'chatai_workspace_ui'
 const DEFAULT_MODEL = 'nexus-3.8'
 
 function normalizeModel(model) {
@@ -17,16 +23,15 @@ function normalizeModel(model) {
   return DEFAULT_MODEL
 }
 
-function createChat(name) {
-  return {
-    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    name,
-    messages: [],
-    createdAt: Date.now(),
-    model: normalizeModel(DEFAULT_MODEL),
-    deepMode: false,
-    annotations: {},
+function normalizeSkillList(raw) {
+  if (!Array.isArray(raw)) return []
+  const normalized = []
+  for (const item of raw) {
+    if (typeof item !== 'string') continue
+    const clean = item.trim()
+    if (clean && !normalized.includes(clean)) normalized.push(clean)
   }
+  return normalized
 }
 
 function normalizeAnnotationRecord(raw) {
@@ -46,6 +51,48 @@ function normalizeAnnotationRecord(raw) {
   return normalized
 }
 
+function getUiStorageKey(userId) {
+  return `${UI_STORAGE_PREFIX}_${userId || 'guest'}`
+}
+
+function readChatUiState(userId) {
+  try {
+    const saved = localStorage.getItem(getUiStorageKey(userId))
+    if (!saved) return {}
+    const parsed = JSON.parse(saved)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return parsed
+  } catch {
+    return {}
+  }
+}
+
+function saveChatUiState(userId, uiMap) {
+  localStorage.setItem(getUiStorageKey(userId), JSON.stringify(uiMap))
+}
+
+function createFolder(name) {
+  return {
+    id: `folder-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    createdAt: Date.now(),
+  }
+}
+
+function createChat(name, folderId = null) {
+  return {
+    id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    folderId,
+    messages: [],
+    createdAt: Date.now(),
+    model: normalizeModel(DEFAULT_MODEL),
+    deepMode: false,
+    skills: [],
+    annotations: {},
+  }
+}
+
 function normalizeMessage(msg, index) {
   const text = msg?.text ?? msg?.content ?? ''
   const role = msg?.role === 'assistant' ? 'bot' : (msg?.role || 'bot')
@@ -61,6 +108,19 @@ function normalizeMessage(msg, index) {
   return { id, role, text, timestamp, attachments }
 }
 
+function normalizeFolder(folder) {
+  if (!folder) return createFolder('Новая папка')
+  const createdAt = folder.createdAt
+    ? Number(folder.createdAt)
+    : (folder.created ? Date.parse(folder.created) : Date.now())
+
+  return {
+    id: String(folder.id),
+    name: folder.name || 'Новая папка',
+    createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
+  }
+}
+
 function normalizeChat(chat) {
   if (!chat) return createChat('Чат 1')
   const messages = Array.isArray(chat.messages)
@@ -74,33 +134,66 @@ function normalizeChat(chat) {
   return {
     id: String(chat.id || `local-${Date.now()}`),
     name: chat.name || 'Чат 1',
+    folderId: chat.folderId ?? (chat.folder != null ? String(chat.folder) : null),
     messages,
     createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
     model: normalizeModel(chat.model),
     deepMode: Boolean(chat.deep_mode ?? chat.deepMode),
+    skills: normalizeSkillList(chat.skills),
     annotations: normalizeAnnotationRecord(chat.annotations),
   }
 }
 
-function readGuestChatsFromStorage() {
+function applyUiStateToChats(chats, uiMap) {
+  return chats.map(chat => {
+    const ui = uiMap?.[String(chat.id)] || {}
+    return {
+      ...chat,
+      skills: normalizeSkillList(ui.skills ?? chat.skills),
+      annotations: normalizeAnnotationRecord(ui.annotations ?? chat.annotations),
+    }
+  })
+}
+
+function createUiStateFromChats(chats) {
+  return chats.reduce((acc, chat) => {
+    acc[String(chat.id)] = {
+      skills: normalizeSkillList(chat.skills),
+      annotations: normalizeAnnotationRecord(chat.annotations),
+    }
+    return acc
+  }, {})
+}
+
+function readGuestWorkspaceFromStorage() {
   try {
     const saved = localStorage.getItem(GUEST_STORAGE_KEY)
-    if (!saved) return []
-    const parsed = JSON.parse(saved)
-    if (!Array.isArray(parsed)) return []
-    return parsed.map(normalizeChat)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      const folders = Array.isArray(parsed?.folders) ? parsed.folders.map(normalizeFolder) : []
+      const chats = Array.isArray(parsed?.chats) ? parsed.chats.map(normalizeChat) : []
+      return { folders, chats }
+    }
+
+    const legacy = localStorage.getItem(LEGACY_GUEST_STORAGE_KEY)
+    if (!legacy) return { folders: [], chats: [] }
+    const parsed = JSON.parse(legacy)
+    if (!Array.isArray(parsed)) return { folders: [], chats: [] }
+    return { folders: [], chats: parsed.map(normalizeChat) }
   } catch {
-    return []
+    return { folders: [], chats: [] }
   }
 }
 
-function saveGuestChatsToStorage(chats) {
-  localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(chats))
+function saveGuestWorkspaceToStorage(workspace) {
+  localStorage.setItem(GUEST_STORAGE_KEY, JSON.stringify(workspace))
+  localStorage.removeItem(LEGACY_GUEST_STORAGE_KEY)
 }
 
 function toApiPayload(chat) {
   return {
     name: chat.name || 'Чат',
+    folder: chat.folderId ? Number(chat.folderId) : null,
     messages: Array.isArray(chat.messages) ? chat.messages : [],
     model: normalizeModel(chat.model),
     deep_mode: Boolean(chat.deepMode),
@@ -109,20 +202,35 @@ function toApiPayload(chat) {
 
 export function useChats({ user, accessToken, authEvent }) {
   const isAuthenticated = Boolean(user?.id && accessToken)
+  const [folders, setFolders] = useState([])
   const [chats, setChats] = useState([createChat('Чат 1')])
   const [activeChatId, setActiveChatId] = useState(null)
   const [loading, setLoading] = useState(true)
   const chatsRef = useRef(chats)
+  const foldersRef = useRef(folders)
 
   useEffect(() => {
     chatsRef.current = chats
   }, [chats])
 
-  const refreshRemoteChats = useCallback(async () => {
-    const remote = await apiGetChats(accessToken)
-    if (!Array.isArray(remote)) return []
-    return remote.map(normalizeChat)
-  }, [accessToken])
+  useEffect(() => {
+    foldersRef.current = folders
+  }, [folders])
+
+  const refreshRemoteWorkspace = useCallback(async () => {
+    const [remoteChats, remoteFolders] = await Promise.all([
+      apiGetChats(accessToken),
+      apiGetFolders(accessToken),
+    ])
+    const uiState = readChatUiState(user?.id)
+    return {
+      chats: applyUiStateToChats(
+        Array.isArray(remoteChats) ? remoteChats.map(normalizeChat) : [],
+        uiState
+      ),
+      folders: Array.isArray(remoteFolders) ? remoteFolders.map(normalizeFolder) : [],
+    }
+  }, [accessToken, user?.id])
 
   useEffect(() => {
     let cancelled = false
@@ -131,44 +239,59 @@ export function useChats({ user, accessToken, authEvent }) {
       setLoading(true)
 
       if (!isAuthenticated) {
-        const guestChats = readGuestChatsFromStorage()
-        const initial = guestChats.length > 0 ? guestChats : [createChat('Чат 1')]
+        const guestWorkspace = readGuestWorkspaceFromStorage()
+        const initialChats = guestWorkspace.chats.length > 0 ? guestWorkspace.chats : [createChat('Чат 1')]
         if (cancelled) return
-        setChats(initial)
+        setFolders(guestWorkspace.folders)
+        setChats(initialChats)
         setActiveChatId(prev => (
-          prev && initial.some(c => String(c.id) === String(prev))
+          prev && initialChats.some(c => String(c.id) === String(prev))
             ? String(prev)
-            : initial[0]?.id || null
+            : initialChats[0]?.id || null
         ))
         setLoading(false)
         return
       }
 
       try {
-        let remoteChats = await refreshRemoteChats()
+        let remoteWorkspace = await refreshRemoteWorkspace()
         const shouldMigrateGuestChats = authEvent?.type === 'register'
+        const guestWorkspace = readGuestWorkspaceFromStorage()
 
-        const guestChats = readGuestChatsFromStorage()
-        if (shouldMigrateGuestChats && guestChats.length > 0) {
-          for (const guestChat of guestChats) {
-            await apiCreateChat(accessToken, toApiPayload(guestChat))
+        if (shouldMigrateGuestChats && (guestWorkspace.folders.length > 0 || guestWorkspace.chats.length > 0)) {
+          const folderIdMap = new Map()
+
+          for (const folder of guestWorkspace.folders) {
+            const createdFolder = await apiCreateFolder(accessToken, { name: folder.name })
+            folderIdMap.set(String(folder.id), String(createdFolder.id))
           }
+
+          for (const guestChat of guestWorkspace.chats) {
+            const payload = toApiPayload({
+              ...guestChat,
+              folderId: guestChat.folderId ? folderIdMap.get(String(guestChat.folderId)) || null : null,
+            })
+            await apiCreateChat(accessToken, payload)
+          }
+
           localStorage.removeItem(GUEST_STORAGE_KEY)
-          remoteChats = await refreshRemoteChats()
+          localStorage.removeItem(LEGACY_GUEST_STORAGE_KEY)
+          remoteWorkspace = await refreshRemoteWorkspace()
         }
 
         if (cancelled) return
-        setChats(remoteChats)
+        setFolders(remoteWorkspace.folders)
+        setChats(remoteWorkspace.chats)
         setActiveChatId(prev => (
-          prev && remoteChats.some(c => String(c.id) === String(prev))
+          prev && remoteWorkspace.chats.some(c => String(c.id) === String(prev))
             ? String(prev)
-            : remoteChats[0]?.id || null
+            : remoteWorkspace.chats[0]?.id || null
         ))
       } catch (e) {
         if (!cancelled) {
-          console.error('Не удалось загрузить чаты:', e)
-          const fallback = []
-          setChats(fallback)
+          console.error('Не удалось загрузить workspace:', e)
+          setFolders([])
+          setChats([])
           setActiveChatId(null)
         }
       } finally {
@@ -180,23 +303,81 @@ export function useChats({ user, accessToken, authEvent }) {
     return () => {
       cancelled = true
     }
-  }, [isAuthenticated, accessToken, refreshRemoteChats, user?.id, authEvent?.type, authEvent?.at])
+  }, [isAuthenticated, accessToken, refreshRemoteWorkspace, user?.id, authEvent?.type, authEvent?.at])
 
   useEffect(() => {
     if (!isAuthenticated) {
-      saveGuestChatsToStorage(chats)
+      saveGuestWorkspaceToStorage({ folders, chats })
+      return
     }
-  }, [chats, isAuthenticated])
+
+    saveChatUiState(user?.id, createUiStateFromChats(chats))
+  }, [folders, chats, isAuthenticated, user?.id])
 
   const activeChat = useMemo(
     () => chats.find(c => String(c.id) === String(activeChatId)) || chats[0] || null,
     [chats, activeChatId]
   )
 
-  async function addChat() {
+  async function addFolder(name = '') {
+    const folderName = (name || `Папка ${foldersRef.current.length + 1}`).trim()
+
+    if (!isAuthenticated) {
+      const newFolder = createFolder(folderName)
+      setFolders(prev => [...prev, newFolder])
+      return newFolder
+    }
+
+    try {
+      const created = await apiCreateFolder(accessToken, { name: folderName })
+      const normalized = normalizeFolder(created)
+      setFolders(prev => [...prev, normalized])
+      return normalized
+    } catch (e) {
+      console.error('Не удалось создать папку:', e)
+      return null
+    }
+  }
+
+  async function renameFolder(id, name) {
+    const folderId = String(id)
+    const folderName = name.trim()
+    if (!folderName) return
+
+    setFolders(prev => prev.map(folder => (
+      String(folder.id) === folderId ? { ...folder, name: folderName } : folder
+    )))
+
+    if (!isAuthenticated) return
+
+    apiUpdateFolder(accessToken, folderId, { name: folderName }).catch(e => {
+      console.error('Не удалось переименовать папку:', e)
+    })
+  }
+
+  async function deleteFolder(id) {
+    const folderId = String(id)
+
+    setFolders(prev => prev.filter(folder => String(folder.id) !== folderId))
+    setChats(prev => prev.map(chat => (
+      String(chat.folderId) === folderId ? { ...chat, folderId: null } : chat
+    )))
+
+    if (!isAuthenticated) return
+
+    try {
+      await apiDeleteFolder(accessToken, folderId)
+    } catch (e) {
+      console.error('Не удалось удалить папку:', e)
+    }
+  }
+
+  async function addChat(options = {}) {
+    const folderId = options.folderId ? String(options.folderId) : null
+
     if (!isAuthenticated) {
       setChats(prev => {
-        const newChat = createChat(`Чат ${prev.length + 1}`)
+        const newChat = createChat(`Чат ${prev.length + 1}`, folderId)
         setActiveChatId(newChat.id)
         return [...prev, newChat]
       })
@@ -205,8 +386,8 @@ export function useChats({ user, accessToken, authEvent }) {
 
     try {
       const nextName = `Чат ${chatsRef.current.length + 1}`
-      const created = await apiCreateChat(accessToken, toApiPayload(createChat(nextName)))
-      const normalized = normalizeChat(created)
+      const created = await apiCreateChat(accessToken, toApiPayload(createChat(nextName, folderId)))
+      const normalized = applyUiStateToChats([normalizeChat(created)], readChatUiState(user?.id))[0]
       setChats(prev => [...prev, normalized])
       setActiveChatId(normalized.id)
     } catch (e) {
@@ -235,13 +416,14 @@ export function useChats({ user, accessToken, authEvent }) {
 
     try {
       await apiDeleteChat(accessToken, chatId)
-      const refreshed = await refreshRemoteChats()
+      const refreshed = await refreshRemoteWorkspace()
 
-      setChats(refreshed)
+      setFolders(refreshed.folders)
+      setChats(refreshed.chats)
       setActiveChatId(prev => (
-        prev && refreshed.some(c => String(c.id) === String(prev))
+        prev && refreshed.chats.some(c => String(c.id) === String(prev))
           ? String(prev)
-          : refreshed[0]?.id || null
+          : refreshed.chats[0]?.id || null
       ))
     } catch (e) {
       console.error('Не удалось удалить чат:', e)
@@ -250,11 +432,14 @@ export function useChats({ user, accessToken, authEvent }) {
 
   function renameChat(id, name) {
     const chatId = String(id)
-    setChats(prev => prev.map(c => (String(c.id) === chatId ? { ...c, name } : c)))
+    const chatName = name.trim()
+    if (!chatName) return
+
+    setChats(prev => prev.map(c => (String(c.id) === chatId ? { ...c, name: chatName } : c)))
 
     if (!isAuthenticated) return
 
-    apiUpdateChat(accessToken, chatId, { name }).catch(e => {
+    apiUpdateChat(accessToken, chatId, { name: chatName }).catch(e => {
       console.error('Не удалось переименовать чат:', e)
     })
   }
@@ -276,15 +461,28 @@ export function useChats({ user, accessToken, authEvent }) {
 
   function updateChat(chatId, data) {
     const id = String(chatId)
-    setChats(prev => prev.map(c => (String(c.id) === id ? { ...c, ...data } : c)))
+    const nextData = { ...data }
+
+    if (Object.prototype.hasOwnProperty.call(nextData, 'skills')) {
+      nextData.skills = normalizeSkillList(nextData.skills)
+    }
+    if (Object.prototype.hasOwnProperty.call(nextData, 'annotations')) {
+      nextData.annotations = normalizeAnnotationRecord(nextData.annotations)
+    }
+    if (Object.prototype.hasOwnProperty.call(nextData, 'folderId')) {
+      nextData.folderId = nextData.folderId ? String(nextData.folderId) : null
+    }
+
+    setChats(prev => prev.map(c => (String(c.id) === id ? { ...c, ...nextData } : c)))
 
     if (!isAuthenticated) return
 
     const payload = {}
-    if (Object.prototype.hasOwnProperty.call(data, 'name')) payload.name = data.name
-    if (Object.prototype.hasOwnProperty.call(data, 'model')) payload.model = data.model
-    if (Object.prototype.hasOwnProperty.call(data, 'deepMode')) payload.deep_mode = Boolean(data.deepMode)
-    if (Object.prototype.hasOwnProperty.call(data, 'messages')) payload.messages = data.messages
+    if (Object.prototype.hasOwnProperty.call(nextData, 'name')) payload.name = nextData.name
+    if (Object.prototype.hasOwnProperty.call(nextData, 'folderId')) payload.folder = nextData.folderId ? Number(nextData.folderId) : null
+    if (Object.prototype.hasOwnProperty.call(nextData, 'model')) payload.model = nextData.model
+    if (Object.prototype.hasOwnProperty.call(nextData, 'deepMode')) payload.deep_mode = Boolean(nextData.deepMode)
+    if (Object.prototype.hasOwnProperty.call(nextData, 'messages')) payload.messages = nextData.messages
     if (Object.keys(payload).length === 0) return
 
     apiUpdateChat(accessToken, id, payload).catch(e => {
@@ -293,11 +491,15 @@ export function useChats({ user, accessToken, authEvent }) {
   }
 
   return {
+    folders,
     chats,
     activeChat,
     activeChatId,
     loading,
     setActiveChatId,
+    addFolder,
+    renameFolder,
+    deleteFolder,
     addChat,
     deleteChat,
     renameChat,

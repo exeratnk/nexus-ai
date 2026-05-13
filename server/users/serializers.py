@@ -1,6 +1,6 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import User, Chat
+from .models import User, Chat, ProjectFolder
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -28,13 +28,26 @@ class ProfileSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'date_joined', 'updated')
 
 
+class ProjectFolderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectFolder
+        fields = ('id', 'name', 'created', 'updated')
+        read_only_fields = ('id', 'created', 'updated')
+
+
 class ChatSerializer(serializers.ModelSerializer):
     class Meta:
         model = Chat
-        fields = ('id', 'name', 'messages', 'model', 'deep_mode', 'created', 'updated')
+        fields = ('id', 'name', 'folder', 'messages', 'model', 'deep_mode', 'created', 'updated')
         read_only_fields = ('id', 'created', 'updated')
 
     def validate_messages(self, value):
         if not isinstance(value, list):
             raise serializers.ValidationError('messages должно быть массивом.')
+        return value
+
+    def validate_folder(self, value):
+        request = self.context.get('request')
+        if value and request and value.user_id != request.user.id:
+            raise serializers.ValidationError('Нельзя использовать чужую папку.')
         return value

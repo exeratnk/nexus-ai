@@ -161,6 +161,53 @@ export default function ProfileModal({
                 </span>
               </div>
               <p>@{user?.username || 'guest'}</p>
+
+              <div className="profile-avatar-actions">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  hidden
+                />
+                <button
+                  type="button"
+                  className="btn-ghost small glass-shimmer"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  Загрузить аватар
+                </button>
+
+                {avatarFile && (
+                  <button
+                    type="button"
+                    className="btn-ghost small glass-shimmer"
+                    onClick={() => setAvatarFile(null)}
+                  >
+                    Убрать файл
+                  </button>
+                )}
+
+                {!avatarFile && user?.avatar && !removeAvatar && (
+                  <button
+                    type="button"
+                    className="btn-ghost small glass-shimmer"
+                    onClick={handleRemoveAvatar}
+                  >
+                    Удалить аватар
+                  </button>
+                )}
+
+                {!avatarFile && removeAvatar && (
+                  <button
+                    type="button"
+                    className="btn-ghost small glass-shimmer"
+                    onClick={handleRestoreAvatar}
+                  >
+                    Вернуть аватар
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -177,53 +224,6 @@ export default function ProfileModal({
               <span>Био</span>
               <strong>{form.bio.trim() || 'Пока без описания'}</strong>
             </div>
-          </div>
-
-          <div className="profile-avatar-actions">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              hidden
-            />
-            <button
-              type="button"
-              className="btn-ghost small glass-shimmer"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Загрузить аватар
-            </button>
-
-            {avatarFile && (
-              <button
-                type="button"
-                className="btn-ghost small glass-shimmer"
-                onClick={() => setAvatarFile(null)}
-              >
-                Убрать файл
-              </button>
-            )}
-
-            {!avatarFile && user?.avatar && !removeAvatar && (
-              <button
-                type="button"
-                className="btn-ghost small glass-shimmer"
-                onClick={handleRemoveAvatar}
-              >
-                Удалить аватар
-              </button>
-            )}
-
-            {!avatarFile && removeAvatar && (
-              <button
-                type="button"
-                className="btn-ghost small glass-shimmer"
-                onClick={handleRestoreAvatar}
-              >
-                Вернуть аватар
-              </button>
-            )}
           </div>
         </aside>
 

@@ -36,10 +36,19 @@ class AuthChatFlowTests(APITestCase):
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         self.assertEqual(list_response.data, [])
 
+        folder_response = self.client.post(
+            reverse('folder-list'),
+            {'name': 'Курсовые'},
+            format='json',
+        )
+        self.assertEqual(folder_response.status_code, status.HTTP_201_CREATED)
+        folder_id = folder_response.data['id']
+
         create_response = self.client.post(
             reverse('chat-list'),
             {
                 'name': 'Первый чат',
+                'folder': folder_id,
                 'messages': [{'id': '1', 'role': 'user', 'text': 'Привет'}],
                 'model': 'gpt-4o',
                 'deep_mode': True,
@@ -48,17 +57,22 @@ class AuthChatFlowTests(APITestCase):
         )
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
         chat_id = create_response.data['id']
+        self.assertEqual(create_response.data['folder'], folder_id)
 
         update_response = self.client.patch(
             reverse('chat-detail', kwargs={'pk': chat_id}),
-            {'name': 'Обновлённый чат'},
+            {'name': 'Обновлённый чат', 'folder': None},
             format='json',
         )
         self.assertEqual(update_response.status_code, status.HTTP_200_OK)
         self.assertEqual(update_response.data['name'], 'Обновлённый чат')
+        self.assertIsNone(update_response.data['folder'])
 
         delete_response = self.client.delete(reverse('chat-detail', kwargs={'pk': chat_id}))
         self.assertEqual(delete_response.status_code, status.HTTP_204_NO_CONTENT)
+
+        delete_folder_response = self.client.delete(reverse('folder-detail', kwargs={'pk': folder_id}))
+        self.assertEqual(delete_folder_response.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_logout_blacklists_refresh_token(self):
         tokens = self.authenticate()

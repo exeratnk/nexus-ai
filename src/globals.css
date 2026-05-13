@@ -52,8 +52,8 @@
   --inner-highlight-strong: inset 0 1px 0 rgba(255, 255, 255, 0.11);
   --focus-ring: 0 0 0 3px rgba(255, 255, 255, 0.06);
   --button-shimmer: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.09) 50%, transparent 60%);
-  --decor-orb-1: rgba(91, 122, 189, 0.14);
-  --decor-orb-2: rgba(140, 155, 196, 0.08);
+  --decor-orb-1: rgba(110, 118, 208, 0.16);
+  --decor-orb-2: rgba(152, 136, 214, 0.1);
   --layout-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
   --toggle-thumb: rgba(255, 255, 255, 0.85);
   --toggle-thumb-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -63,17 +63,19 @@
   --fallback-solid: rgba(20, 20, 20, 0.95);
   --sidebar-w: 280px;
   --page-gradient:
-    radial-gradient(circle at top left, rgba(86, 115, 176, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(88, 136, 214, 0.12), transparent 22%),
+    radial-gradient(circle at top left, rgba(78, 96, 148, 0.14), transparent 28%),
+    radial-gradient(circle at top right, rgba(142, 102, 232, 0.18), transparent 24%),
+    radial-gradient(circle at 52% 14%, rgba(186, 132, 255, 0.12), transparent 20%),
+    radial-gradient(circle at 68% 78%, rgba(116, 76, 202, 0.08), transparent 24%),
     radial-gradient(circle at bottom center, rgba(255, 255, 255, 0.04), transparent 30%),
-    linear-gradient(180deg, #161a22 0%, #12161d 46%, #0d1016 100%);
+    linear-gradient(180deg, #1a1b21 0%, #15171d 46%, #101217 100%);
 }
 
 :root.theme-dark {
   --bg: #10141b;
-  --bg-2: rgba(24, 28, 37, 0.9);
-  --bg-3: rgba(31, 36, 46, 0.94);
-  --bg-primary: rgba(18, 22, 30, 0.92);
+  --bg-2: rgba(27, 29, 35, 0.92);
+  --bg-3: rgba(34, 37, 44, 0.95);
+  --bg-primary: rgba(21, 23, 29, 0.94);
   --surface-elevated: rgba(255, 255, 255, 0.055);
   --surface-strong: rgba(255, 255, 255, 0.11);
   --surface-soft: rgba(255, 255, 255, 0.03);
@@ -102,8 +104,8 @@
   --inner-highlight-strong: inset 0 1px 0 rgba(255, 255, 255, 0.11);
   --focus-ring: 0 0 0 3px rgba(255, 255, 255, 0.06);
   --button-shimmer: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.09) 50%, transparent 60%);
-  --decor-orb-1: rgba(91, 122, 189, 0.14);
-  --decor-orb-2: rgba(140, 155, 196, 0.08);
+  --decor-orb-1: rgba(110, 118, 208, 0.16);
+  --decor-orb-2: rgba(166, 128, 232, 0.14);
   --layout-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0));
   --toggle-thumb: rgba(255, 255, 255, 0.85);
   --toggle-thumb-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -112,10 +114,12 @@
   --bubble-user-border: rgba(255, 255, 255, 0.15);
   --fallback-solid: rgba(20, 20, 20, 0.95);
   --page-gradient:
-    radial-gradient(circle at top left, rgba(86, 115, 176, 0.18), transparent 28%),
-    radial-gradient(circle at top right, rgba(88, 136, 214, 0.12), transparent 22%),
+    radial-gradient(circle at top left, rgba(78, 96, 148, 0.14), transparent 28%),
+    radial-gradient(circle at top right, rgba(142, 102, 232, 0.18), transparent 24%),
+    radial-gradient(circle at 52% 14%, rgba(186, 132, 255, 0.12), transparent 20%),
+    radial-gradient(circle at 68% 78%, rgba(116, 76, 202, 0.08), transparent 24%),
     radial-gradient(circle at bottom center, rgba(255, 255, 255, 0.04), transparent 30%),
-    linear-gradient(180deg, #161a22 0%, #12161d 46%, #0d1016 100%);
+    linear-gradient(180deg, #1a1b21 0%, #15171d 46%, #101217 100%);
 }
 
 :root.theme-light {
@@ -158,8 +162,8 @@
   --inner-highlight-strong: inset 0 1px 0 rgba(255, 255, 255, 0.62);
   --focus-ring: 0 0 0 3px rgba(36, 104, 214, 0.08);
   --button-shimmer: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.45) 50%, transparent 60%);
-  --decor-orb-1: rgba(117, 174, 255, 0.28);
-  --decor-orb-2: rgba(255, 255, 255, 0.52);
+  --decor-orb-1: rgba(137, 171, 255, 0.28);
+  --decor-orb-2: rgba(212, 196, 255, 0.38);
   --layout-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0));
   --toggle-thumb: rgba(255, 255, 255, 0.98);
   --toggle-thumb-shadow: 0 3px 12px rgba(75, 98, 143, 0.22);
@@ -168,10 +172,11 @@
   --bubble-user-border: rgba(255, 255, 255, 0.72);
   --fallback-solid: rgba(255, 255, 255, 0.95);
   --page-gradient:
-    radial-gradient(circle at top left, rgba(117, 174, 255, 0.34), transparent 26%),
-    radial-gradient(circle at top right, rgba(115, 220, 255, 0.24), transparent 22%),
+    radial-gradient(circle at top left, rgba(117, 174, 255, 0.3), transparent 26%),
+    radial-gradient(circle at top right, rgba(192, 169, 255, 0.2), transparent 22%),
+    radial-gradient(circle at 55% 14%, rgba(236, 228, 255, 0.5), transparent 18%),
     radial-gradient(circle at bottom center, rgba(255, 255, 255, 0.72), transparent 30%),
-    linear-gradient(180deg, #edf3ff 0%, #dfe8fb 46%, #d7e2f6 100%);
+    linear-gradient(180deg, #f1f3ff 0%, #e6e7fb 46%, #dce3f6 100%);
 }
 
 html, body, #root {
