@@ -57,6 +57,11 @@ export default function ProfileModal({
     const source = user?.first_name?.trim() || user?.username || 'Г'
     return source[0].toUpperCase()
   }, [user?.first_name, user?.username])
+  const fullName = useMemo(() => {
+    const parts = [form.first_name.trim(), form.last_name.trim()].filter(Boolean)
+    return parts.join(' ') || user?.username || 'Пользователь NexusAI'
+  }, [form.first_name, form.last_name, user?.username])
+  const hasAvatar = Boolean(user?.avatar || avatarFile) && !removeAvatar
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -130,18 +135,48 @@ export default function ProfileModal({
   return (
     <div className="profile-card">
       <div className="profile-header">
-        <h2>Личный кабинет</h2>
-        <button className="auth-close" type="button" onClick={onClose}>×</button>
+        <div>
+          <span className="brand-kicker">Profile</span>
+          <h2>Личный кабинет</h2>
+        </div>
+        <button className="auth-close glass-shimmer" type="button" onClick={onClose}>×</button>
       </div>
 
-      <form className="profile-form" onSubmit={handleSubmit}>
-        <div className="profile-avatar-row">
-          <div className="profile-avatar">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Аватар пользователя" />
-            ) : (
-              <span>{initials}</span>
-            )}
+      <div className="profile-shell">
+        <aside className="profile-overview">
+          <div className="profile-avatar-row">
+            <div className="profile-avatar">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="Аватар пользователя" />
+              ) : (
+                <span>{initials}</span>
+              )}
+            </div>
+
+            <div className="profile-overview-copy">
+              <div className="profile-name-line">
+                <h3>{fullName}</h3>
+                <span className={`profile-status ${hasAvatar ? 'with-avatar' : ''}`}>
+                  {hasAvatar ? 'Аватар активен' : 'Аватар не задан'}
+                </span>
+              </div>
+              <p>@{user?.username || 'guest'}</p>
+            </div>
+          </div>
+
+          <div className="profile-summary-card">
+            <div className="profile-summary-row">
+              <span>Email</span>
+              <strong>{form.email || 'Не указан'}</strong>
+            </div>
+            <div className="profile-summary-row">
+              <span>Имя</span>
+              <strong>{fullName}</strong>
+            </div>
+            <div className="profile-summary-row">
+              <span>Био</span>
+              <strong>{form.bio.trim() || 'Пока без описания'}</strong>
+            </div>
           </div>
 
           <div className="profile-avatar-actions">
@@ -154,7 +189,7 @@ export default function ProfileModal({
             />
             <button
               type="button"
-              className="btn-ghost small"
+              className="btn-ghost small glass-shimmer"
               onClick={() => fileInputRef.current?.click()}
             >
               Загрузить аватар
@@ -163,7 +198,7 @@ export default function ProfileModal({
             {avatarFile && (
               <button
                 type="button"
-                className="btn-ghost small"
+                className="btn-ghost small glass-shimmer"
                 onClick={() => setAvatarFile(null)}
               >
                 Убрать файл
@@ -173,7 +208,7 @@ export default function ProfileModal({
             {!avatarFile && user?.avatar && !removeAvatar && (
               <button
                 type="button"
-                className="btn-ghost small"
+                className="btn-ghost small glass-shimmer"
                 onClick={handleRemoveAvatar}
               >
                 Удалить аватар
@@ -183,79 +218,108 @@ export default function ProfileModal({
             {!avatarFile && removeAvatar && (
               <button
                 type="button"
-                className="btn-ghost small"
+                className="btn-ghost small glass-shimmer"
                 onClick={handleRestoreAvatar}
               >
                 Вернуть аватар
               </button>
             )}
           </div>
-        </div>
+        </aside>
 
-        <label className="auth-field">
-          <span>Логин</span>
-          <input value={user?.username || ''} disabled />
-        </label>
+        <form className="profile-form" onSubmit={handleSubmit}>
+          <div className="profile-form-section">
+            <div className="profile-section-head">
+              <h3>Основные данные</h3>
+              <p>Управляйте контактами и тем, как вас видят в рабочем пространстве.</p>
+            </div>
 
-        <label className="auth-field">
-          <span>Email</span>
-          <input
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            required
-            autoComplete="email"
-          />
-        </label>
+            <label className="auth-field">
+              <span>Логин</span>
+              <div className="auth-field-control">
+                <input value={user?.username || ''} disabled />
+              </div>
+            </label>
 
-        <div className="profile-grid">
-          <label className="auth-field">
-            <span>Имя</span>
-            <input
-              name="first_name"
-              value={form.first_name}
-              onChange={handleChange}
-              autoComplete="given-name"
-            />
-          </label>
+            <label className="auth-field">
+              <span>Email</span>
+              <div className="auth-field-control">
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                  autoComplete="email"
+                  placeholder="you@studio.ai"
+                />
+              </div>
+            </label>
 
-          <label className="auth-field">
-            <span>Фамилия</span>
-            <input
-              name="last_name"
-              value={form.last_name}
-              onChange={handleChange}
-              autoComplete="family-name"
-            />
-          </label>
-        </div>
+            <div className="profile-grid">
+              <label className="auth-field">
+                <span>Имя</span>
+                <div className="auth-field-control">
+                  <input
+                    name="first_name"
+                    value={form.first_name}
+                    onChange={handleChange}
+                    autoComplete="given-name"
+                    placeholder="Например, Анна"
+                  />
+                </div>
+              </label>
 
-        <label className="auth-field">
-          <span>О себе</span>
-          <textarea
-            className="profile-bio"
-            name="bio"
-            value={form.bio}
-            onChange={handleChange}
-            placeholder="Расскажите немного о себе"
-            rows={4}
-          />
-        </label>
+              <label className="auth-field">
+                <span>Фамилия</span>
+                <div className="auth-field-control">
+                  <input
+                    name="last_name"
+                    value={form.last_name}
+                    onChange={handleChange}
+                    autoComplete="family-name"
+                    placeholder="Например, Орлова"
+                  />
+                </div>
+              </label>
+            </div>
+          </div>
 
-        {(localError || error) && (
-          <div className="auth-error">{localError || error}</div>
-        )}
+          <div className="profile-form-section">
+            <div className="profile-section-head">
+              <h3>О вас</h3>
+              <p>Короткое описание помогает сделать профиль живее и заметнее.</p>
+            </div>
 
-        <div className="profile-actions">
-          <button type="button" className="btn-ghost" onClick={onClose}>
-            Отмена
-          </button>
-          <button className="auth-submit" type="submit" disabled={saving}>
-            {saving ? 'Сохраняем…' : 'Сохранить изменения'}
-          </button>
-        </div>
-      </form>
+            <label className="auth-field">
+              <span>О себе</span>
+              <div className="auth-field-control auth-field-control-textarea">
+                <textarea
+                  className="profile-bio"
+                  name="bio"
+                  value={form.bio}
+                  onChange={handleChange}
+                  placeholder="Расскажите немного о себе"
+                  rows={5}
+                />
+              </div>
+            </label>
+          </div>
+
+          {(localError || error) && (
+            <div className="auth-error">{localError || error}</div>
+          )}
+
+          <div className="profile-actions">
+            <button type="button" className="btn-ghost glass-shimmer" onClick={onClose}>
+              Отмена
+            </button>
+            <button className="auth-submit glass-shimmer" type="submit" disabled={saving}>
+              {saving ? 'Сохраняем…' : 'Сохранить изменения'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { SparkIcon } from './GlassIcons.jsx'
 
 export default function AuthScreen({ onLogin, onRegister, loading, error, onClearError, onClose }) {
   const [mode, setMode] = useState('login')
@@ -47,74 +48,99 @@ export default function AuthScreen({ onLogin, onRegister, loading, error, onClea
   }
 
   return (
-    <div className="auth-card">
+    <div className={`auth-card auth-card-${mode}`}>
+      <div className="auth-hero">
+        <div className="auth-hero-badge">
+          <SparkIcon size={16} />
+          Nexus Access
+        </div>
+        <h2>{mode === 'login' ? 'Продолжить работу' : 'Создать пространство'}</h2>
+        <p>
+          {mode === 'login'
+            ? 'Вернитесь в рабочую сессию, чаты и настройки профиля за пару секунд.'
+            : 'Зарегистрируйтесь, чтобы сохранять диалоги, аватар и персональные настройки.'}
+        </p>
+      </div>
+
       <div className="auth-header">
         <div className="auth-tabs">
           <button
-            className={mode === 'login' ? 'active' : ''}
+            className={`glass-shimmer ${mode === 'login' ? 'active' : ''}`}
             onClick={() => switchMode('login')}
             type="button"
           >Вход</button>
           <button
-            className={mode === 'register' ? 'active' : ''}
+            className={`glass-shimmer ${mode === 'register' ? 'active' : ''}`}
             onClick={() => switchMode('register')}
             type="button"
           >Регистрация</button>
         </div>
         {onClose && (
-          <button className="auth-close" type="button" onClick={onClose}>×</button>
+          <button className="auth-close glass-shimmer" type="button" onClick={onClose}>×</button>
         )}
       </div>
 
       <form className="auth-form" onSubmit={submit}>
         <label className="auth-field">
           <span>Логин</span>
-          <input
-            name="username"
-            value={form.username}
-            onChange={handleChange}
-            required
-            autoComplete="username"
-          />
+          <div className="auth-field-control">
+            <input
+              name="username"
+              value={form.username}
+              onChange={handleChange}
+              required
+              autoComplete="username"
+              placeholder="например, nexus.creator"
+            />
+          </div>
         </label>
 
         {mode === 'register' && (
           <label className="auth-field">
             <span>Email</span>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              autoComplete="email"
-              required
-            />
+            <div className="auth-field-control">
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                autoComplete="email"
+                required
+                placeholder="you@studio.ai"
+              />
+            </div>
           </label>
         )}
 
         <label className="auth-field">
           <span>Пароль</span>
-          <input
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            required
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          />
+          <div className="auth-field-control">
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              required
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              placeholder={mode === 'login' ? 'Введите пароль' : 'Минимум 8 символов'}
+            />
+          </div>
         </label>
 
         {mode === 'register' && (
           <label className="auth-field">
             <span>Повторите пароль</span>
-            <input
-              type="password"
-              name="password2"
-              value={form.password2}
-              onChange={handleChange}
-              required
-              autoComplete="new-password"
-            />
+            <div className="auth-field-control">
+              <input
+                type="password"
+                name="password2"
+                value={form.password2}
+                onChange={handleChange}
+                required
+                autoComplete="new-password"
+                placeholder="Повторите пароль"
+              />
+            </div>
           </label>
         )}
 
@@ -122,9 +148,15 @@ export default function AuthScreen({ onLogin, onRegister, loading, error, onClea
           <div className="auth-error">{localError || error}</div>
         )}
 
-        <button className="auth-submit" type="submit" disabled={loading}>
+        <button className="auth-submit glass-shimmer" type="submit" disabled={loading}>
           {loading ? 'Подождите…' : mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
         </button>
+
+        <div className="auth-footnote">
+          {mode === 'login'
+            ? 'Откроем ваши сохранённые диалоги и настройки оформления.'
+            : 'После регистрации локальные настройки интерфейса сохранятся автоматически.'}
+        </div>
       </form>
     </div>
   )

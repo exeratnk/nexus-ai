@@ -3,7 +3,17 @@ import AnchorBar from './AnchorBar.jsx'
 import MessageList from './MessageList.jsx'
 import AnnotationDigest from './AnnotationDigest.jsx'
 import { isAnnotationTag } from './annotationConfig.js'
+import {
+  AttachIcon,
+  SendIcon,
+  SparkIcon,
+} from './GlassIcons.jsx'
 
+const MODEL_OPTIONS = [
+  { value: 'nexus-3.7 code', label: 'nexus-3.7 code' },
+  { value: 'nexus-mini', label: 'nexus-mini' },
+  { value: 'nexus-3.8', label: 'nexus-3.8' },
+]
 
 const MOCK_RESPONSES = [
   'Интересный вопрос! Давайте разберём его подробнее.',
@@ -85,11 +95,10 @@ function writeAnnotations(chatId, annotations) {
   localStorage.setItem(getAnnotationStorageKey(chatId), JSON.stringify(normalized))
 }
 
-export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
+export default function ChatWindow({ chat, onAddMessage, onUpdateChat, isFocus }) {
   const [input, setInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [isTyping, setIsTyping] = useState(false)
-  const bottomRef = useRef(null)
   const messagesContainerRef = useRef(null)
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -98,7 +107,7 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
   const anchors = chat.messages
     .filter(m => m.role === 'user')
     .map(m => {
-      const base = (m.text || '').trim() || (m.attachments?.[0]?.name ? `📎 ${m.attachments[0].name}` : 'Сообщение')
+      const base = (m.text || '').trim() || (m.attachments?.[0]?.name ? `Файл: ${m.attachments[0].name}` : 'Сообщение')
       const preview = base.length > 30 ? base.slice(0, 30) + '…' : base
       return { id: m.id, text: preview }
     })
@@ -110,7 +119,13 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
 
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: chat.messages.length > 0 ? 'smooth' : 'auto',
+    })
   }, [chat.messages, isTyping])
 
   useEffect(() => {
@@ -130,11 +145,21 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
 
   function scrollToAnchor(msgId) {
     const el = document.getElementById(`msg-${msgId}`)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      el.classList.add('highlight')
-      setTimeout(() => el.classList.remove('highlight'), 1500)
-    }
+    const container = messagesContainerRef.current
+    if (!el || !container) return
+
+    const containerRect = container.getBoundingClientRect()
+    const messageRect = el.getBoundingClientRect()
+    const scrollMarginTop = parseFloat(getComputedStyle(el).scrollMarginTop || '0')
+    const nextTop = container.scrollTop + messageRect.top - containerRect.top - scrollMarginTop
+
+    container.scrollTo({
+      top: Math.max(0, nextTop),
+      behavior: 'smooth',
+    })
+
+    el.classList.add('highlight')
+    setTimeout(() => el.classList.remove('highlight'), 1500)
   }
 
   function getAnnotation(messageId) {
@@ -192,6 +217,9 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
     if ((!text && !selectedFile) || isTyping) return
 
     setInput('')
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '42px'
+    }
     setSelectedFile(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
 
@@ -263,109 +291,143 @@ export default function ChatWindow({ chat, onAddMessage, onUpdateChat }) {
     onUpdateChat?.(chat.id, { model: e.target.value })
   }
 
+  function applyPrompt(prompt) {
+    setInput(prompt)
+    requestAnimationFrame(() => {
+      if (!textareaRef.current) return
+      textareaRef.current.focus()
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 140)}px`
+    })
+  }
+
   return (
     <div className="chat-window">
-      <div className="chat-header">
-        <span className="chat-header-name">{chat.name}</span>
-        <span className="chat-header-count">
-          {chat.messages.length} сообщ.
-        </span>
-      </div>
+      <input
+        ref={fileInputRef}
+        id={`file-input-${chat.id}`}
+        type="file"
+        onChange={handleFileChange}
+        hidden
+      />
 
-      <div className="chat-controls">
-        <div className="control">
-          <span className="control-label">Модель</span>
-          <select
-            className="select-model"
-            value={chat.model}
-            onChange={handleModelChange}
-          >
-            <option value="gpt-4o">GPT-4o</option>
-            <option value="gpt-4o-mini">GPT-4o mini</option>
-            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-          </select>
+      <div className="chat-top">
+        <div className="chat-header">
+          <div className="chat-title-stack">
+            <span className="chat-eyebrow">
+              <SparkIcon size={13} />
+              Активная сессия
+            </span>
+            <div className="chat-heading-row">
+              <h1 className="chat-header-name">{chat.name}</h1>
+              <span className="chat-header-count">
+                {chat.messages.length} сообщ.
+              </span>
+            </div>
+          </div>
         </div>
 
-        <label className="toggle" title="Ответы будут детальнее и чуть дольше">
-          <input
-            type="checkbox"
-            checked={chat.deepMode}
-            onChange={toggleDeepMode}
-          />
-          <span className="toggle-slider" aria-hidden />
-          <span className="toggle-label">Глубокое размышление</span>
-        </label>
+        <div className="chat-controls">
+          <div className="control model-control">
+            <span className="control-label">Модель</span>
+            <div className="select-wrap">
+              <select
+                className="select-model"
+                value={chat.model}
+                onChange={handleModelChange}
+              >
+                {MODEL_OPTIONS.map(model => (
+                  <option key={model.value} value={model.value}>{model.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-        <div className="file-control">
-          <input
-            ref={fileInputRef}
-            id="file-input"
-            type="file"
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
+          <label className="toggle" title="Ответы будут детальнее и чуть дольше">
+            <input
+              type="checkbox"
+              checked={chat.deepMode}
+              onChange={toggleDeepMode}
+            />
+            <span className="toggle-slider" aria-hidden />
+            <span className="toggle-label">Глубокий режим</span>
+          </label>
+        </div>
+
+        <AnchorBar anchors={anchors} onAnchorClick={scrollToAnchor} />
+        <AnnotationDigest
+          chatName={chat.name}
+          messages={chat.messages}
+          annotations={annotations}
+          onJump={scrollToAnchor}
+        />
+      </div>
+
+      <div className="messages-container" ref={messagesContainerRef}>
+        <div className="messages">
+          <MessageList
+            messages={chat.messages}
+            annotations={annotations}
+            toggleTag={toggleTag}
+            setNote={setNote}
+            getAnnotation={getAnnotation}
+            isFocus={isFocus}
+            onPromptSelect={applyPrompt}
           />
-          <button
-            className="btn-ghost"
-            onClick={() => fileInputRef.current?.click()}
-            type="button"
-          >
-            📎 Добавить файл
-          </button>
-          {selectedFile && (
-            <div className="file-chip" title={selectedFile.name}>
-              <span className="file-chip-name">{selectedFile.name}</span>
-              <span className="file-chip-size">{formatBytes(selectedFile.size)}</span>
-              <button className="chip-close" onClick={removeFile} type="button">×</button>
+          {isTyping && (
+            <div className="message-list typing-list">
+              <div className="msg-wrap msg-wrap-bot">
+                <div className="message message-bot typing">
+                  <div className="message-role">NexusAI</div>
+                  <div className="typing-dots">
+                    <span /><span /><span />
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
       </div>
 
-      <AnchorBar anchors={anchors} onAnchorClick={scrollToAnchor} />
-      <AnnotationDigest
-        chatName={chat.name}
-        messages={chat.messages}
-        annotations={annotations}
-        onJump={scrollToAnchor}
-      />
-
-      <div className="messages-container messages" ref={messagesContainerRef}>
-        <MessageList
-          messages={chat.messages}
-          annotations={annotations}
-          toggleTag={toggleTag}
-          setNote={setNote}
-          getAnnotation={getAnnotation}
-        />
-        {isTyping && (
-          <div className="message message-bot typing">
-            <div className="message-role">Бот</div>
-            <div className="typing-dots">
-              <span /><span /><span />
-            </div>
+      <div className="input-area">
+        {selectedFile && (
+          <div className="file-chip composer-file-chip" title={selectedFile.name}>
+            <span className="file-chip-name">{selectedFile.name}</span>
+            <span className="file-chip-size">{formatBytes(selectedFile.size)}</span>
+            <button className="chip-close glass-shimmer" onClick={removeFile} type="button" aria-label="Убрать файл">×</button>
           </div>
         )}
-        <div ref={bottomRef} />
-      </div>
-
-      <div className="input-area">
-        <textarea
-          ref={textareaRef}
-          className="input-field"
-          placeholder="Написать сообщение..."
-          value={input}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          disabled={isTyping}
-        />
-        <button
-          className="btn-send"
-          onClick={handleSend}
-          disabled={(!input.trim() && !selectedFile) || isTyping}
-        >
-          ↑
-        </button>
+        <div className="input-shell">
+          <button
+            className="composer-tool glass-shimmer"
+            onClick={() => fileInputRef.current?.click()}
+            type="button"
+            aria-label="Добавить файл"
+            title="Добавить файл"
+          >
+            <AttachIcon size={18} />
+          </button>
+          <textarea
+            ref={textareaRef}
+            className="input-field"
+            placeholder="Спросите NexusAI о стратегии, коде, исследовании или файлах..."
+            value={input}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            disabled={isTyping}
+          />
+          <span className="composer-hint">Enter</span>
+          <button
+            className="btn-send glass-shimmer"
+            onClick={handleSend}
+            disabled={(!input.trim() && !selectedFile) || isTyping}
+            aria-label="Отправить сообщение"
+            title="Отправить сообщение"
+          >
+            <SendIcon size={18} />
+          </button>
+        </div>
       </div>
     </div>
   )

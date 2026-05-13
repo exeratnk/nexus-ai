@@ -7,7 +7,15 @@ import {
 } from '../api.js'
 
 const GUEST_STORAGE_KEY = 'chatai_chats'
-const DEFAULT_MODEL = 'gpt-4o'
+const DEFAULT_MODEL = 'nexus-3.8'
+
+function normalizeModel(model) {
+  if (model === 'gpt-4o') return 'nexus-3.8'
+  if (model === 'gpt-4o-mini') return 'nexus-mini'
+  if (model === 'gpt-3.5-turbo') return 'nexus-3.7 code'
+  if (model === 'nexus-3.7 code' || model === 'nexus-mini' || model === 'nexus-3.8') return model
+  return DEFAULT_MODEL
+}
 
 function createChat(name) {
   return {
@@ -15,7 +23,7 @@ function createChat(name) {
     name,
     messages: [],
     createdAt: Date.now(),
-    model: DEFAULT_MODEL,
+    model: normalizeModel(DEFAULT_MODEL),
     deepMode: false,
     annotations: {},
   }
@@ -68,7 +76,7 @@ function normalizeChat(chat) {
     name: chat.name || 'Чат 1',
     messages,
     createdAt: Number.isFinite(createdAt) ? createdAt : Date.now(),
-    model: chat.model || DEFAULT_MODEL,
+    model: normalizeModel(chat.model),
     deepMode: Boolean(chat.deep_mode ?? chat.deepMode),
     annotations: normalizeAnnotationRecord(chat.annotations),
   }
@@ -94,7 +102,7 @@ function toApiPayload(chat) {
   return {
     name: chat.name || 'Чат',
     messages: Array.isArray(chat.messages) ? chat.messages : [],
-    model: chat.model || DEFAULT_MODEL,
+    model: normalizeModel(chat.model),
     deep_mode: Boolean(chat.deepMode),
   }
 }

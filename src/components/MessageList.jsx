@@ -1,5 +1,12 @@
 import React, { useMemo, useState } from 'react'
 import { TAG_META, TAG_ORDER, getPrimaryTagColor } from './annotationConfig.js'
+import { AttachIcon, SparkIcon } from './GlassIcons.jsx'
+
+const EMPTY_PROMPTS = [
+  'Сделай обзор стратегии',
+  'Разбери документ',
+  'Предложи UI-концепцию',
+]
 
 function formatBytes(bytes) {
   if (!bytes || Number.isNaN(bytes)) return ''
@@ -59,6 +66,8 @@ export default function MessageList({
   toggleTag,
   setNote,
   getAnnotation,
+  isFocus,
+  onPromptSelect,
 }) {
   const [hoveredId, setHoveredId] = useState(null)
   const [editingNoteId, setEditingNoteId] = useState(null)
@@ -86,10 +95,32 @@ export default function MessageList({
   }
 
   return (
-    <div className="message-list">
+    <div className={`message-list ${messages.length === 0 ? 'message-list-empty' : ''}`}>
       {messages.length === 0 && (
         <div className="empty-state">
-          Начните диалог — напишите что-нибудь ↓
+          <div className="empty-aurora">
+            <SparkIcon size={24} />
+          </div>
+          <span className="empty-kicker">NexusAI готов к работе</span>
+          <h2>Начните разговор с ясной задачи</h2>
+          {isFocus && (
+            <p>
+              Здесь можно разобрать продуктовую идею, загрузить файл, продумать архитектуру
+              или быстро собрать план без визуального шума.
+            </p>
+          )}
+          <div className="empty-prompts" aria-label="Примеры запросов">
+            {EMPTY_PROMPTS.map(prompt => (
+              <button
+                key={prompt}
+                type="button"
+                className="empty-prompt-btn glass-shimmer"
+                onClick={() => onPromptSelect?.(prompt)}
+              >
+                {prompt}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {messages.map(msg => {
@@ -112,10 +143,14 @@ export default function MessageList({
             <div
               id={`msg-${msg.id}`}
               className={`message message-${msg.role}`}
-              style={primaryColor ? { borderLeft: `2.5px solid ${primaryColor}` } : undefined}
+              style={
+                primaryColor
+                  ? { borderLeft: `2.5px solid ${primaryColor}` }
+                  : undefined
+              }
             >
               <div className="message-role">
-                {msg.role === 'user' ? 'Вы' : 'Бот'}
+                {msg.role === 'user' ? 'Вы' : 'NexusAI'}
               </div>
               <div className="message-text">{msg.text}</div>
 
@@ -123,7 +158,7 @@ export default function MessageList({
                 <div className="attachment-list">
                   {msg.attachments.map((file, idx) => (
                     <div className="attachment-chip" key={`${msg.id}-att-${idx}`}>
-                      <span className="attachment-icon">📎</span>
+                      <span className="attachment-icon"><AttachIcon size={12} /></span>
                       <span className="attachment-name">{file.name}</span>
                       <span className="attachment-size">{formatBytes(file.size)}</span>
                     </div>
@@ -148,7 +183,7 @@ export default function MessageList({
                     <button
                       key={`${messageId}-${tag}`}
                       type="button"
-                      className={`toolbar-btn ${active ? 'active' : ''}`}
+                      className={`toolbar-btn glass-shimmer ${active ? 'active' : ''}`}
                       style={active ? { color: meta.color } : undefined}
                       title={meta.label}
                       aria-label={meta.label}
@@ -164,7 +199,7 @@ export default function MessageList({
                 <span className="toolbar-divider" aria-hidden />
                 <button
                   type="button"
-                  className={`toolbar-btn ${isNoteEditing ? 'active note-active' : ''}`}
+                  className={`toolbar-btn glass-shimmer ${isNoteEditing ? 'active note-active' : ''}`}
                   title="Заметка"
                   aria-label="Заметка"
                   onClick={(e) => {
@@ -187,8 +222,11 @@ export default function MessageList({
                         <button
                           key={`${messageId}-pill-${tag}`}
                           type="button"
-                          className="annotation-pill"
-                          style={{ color: meta.color, borderColor: `${meta.color}66` }}
+                          className="annotation-pill glass-shimmer"
+                          style={{
+                            color: meta.color,
+                            borderColor: `${meta.color}66`,
+                          }}
                           onClick={() => toggleTag?.(messageId, tag)}
                           title="Снять метку"
                         >
@@ -220,7 +258,7 @@ export default function MessageList({
                       {note}
                       <button
                         type="button"
-                        className="annotation-note-edit"
+                        className="annotation-note-edit glass-shimmer"
                         onClick={() => openNoteEditor(messageId)}
                         title={`Редактировать заметку #${messageIndexMap[messageId]}`}
                         aria-label="Редактировать заметку"

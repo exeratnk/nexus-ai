@@ -7,6 +7,14 @@ import { useChats } from './hooks/useChats.js'
 import { useAuth } from './hooks/useAuth.js'
 import { useTheme } from './hooks/useTheme.js'
 import { toAbsoluteMediaUrl } from './api.js'
+import {
+  FocusIcon,
+  LogoutIcon,
+  MoonIcon,
+  SettingsIcon,
+  SparkIcon,
+  SunIcon,
+} from './components/GlassIcons.jsx'
 
 export default function App() {
   const [showAuth, setShowAuth] = useState(false)
@@ -74,7 +82,71 @@ export default function App() {
   return (
     <div id="shell" className={`layout shell ${isFocus ? 'focus' : ''}`}>
       <header className="topbar">
-        <div className="topbar-user">
+        <div className="topbar-brand">
+          <div className="brand-mark">
+            <SparkIcon size={20} />
+          </div>
+          <div className="brand-copy">
+            <span className="brand-kicker">NexusAI OS</span>
+            <strong>Liquid Intelligence</strong>
+          </div>
+        </div>
+
+        <div className="topbar-actions">
+          <button
+            className={`btn-ghost small btn-focus glass-shimmer ${isFocus ? 'active' : ''}`}
+            type="button"
+            onClick={() => setIsFocus(prev => !prev)}
+            title={focusButtonLabel}
+            aria-label={focusButtonLabel}
+          >
+            <FocusIcon size={16} />
+          </button>
+          <button className="btn-ghost small glass-shimmer" type="button" onClick={toggleTheme}>
+            {isDark ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+            <span>{isDark ? 'Светлая' : 'Тёмная'}</span>
+          </button>
+          {user ? (
+            <>
+              <button
+                className="btn-ghost small glass-shimmer"
+                type="button"
+                onClick={() => { clearAuthError(); setShowProfile(true) }}
+              >
+                <SettingsIcon size={16} />
+                <span>Настройки</span>
+              </button>
+              <button className="btn-ghost small glass-shimmer" type="button" onClick={logout}>
+                <LogoutIcon size={16} />
+                <span>Выйти</span>
+              </button>
+            </>
+          ) : (
+            <button
+              className="btn-ghost small glass-shimmer"
+              type="button"
+              onClick={() => { clearAuthError(); setShowAuth(true) }}
+            >
+              <SettingsIcon size={16} />
+              <span>Войти / Регистрация</span>
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          className="topbar-profile topbar-profile-button glass-shimmer"
+          onClick={() => {
+            clearAuthError()
+            if (user) {
+              setShowProfile(true)
+              return
+            }
+            setShowAuth(true)
+          }}
+          aria-label={user ? 'Открыть профиль' : 'Открыть авторизацию'}
+          title={user ? 'Открыть профиль' : 'Войти или зарегистрироваться'}
+        >
           <div className="avatar-circle">
             {avatarUrl ? (
               <img src={avatarUrl} alt="Аватар пользователя" />
@@ -84,40 +156,9 @@ export default function App() {
           </div>
           <div>
             <div className="topbar-name">{user?.username || 'Гость'}</div>
-            <div className="topbar-email">{user?.email || 'Без email'}</div>
+            <div className="topbar-email">{user?.email || 'Local workspace'}</div>
           </div>
-        </div>
-        <div className="topbar-actions">
-          <button
-            className={`btn-ghost small btn-focus ${isFocus ? 'active' : ''}`}
-            onClick={() => setIsFocus(prev => !prev)}
-            title={focusButtonLabel}
-            aria-label={focusButtonLabel}
-          >
-            {isFocus ? '✕' : '𖦏'}
-          </button>
-          <button className="btn-ghost small" onClick={toggleTheme}>
-            {isDark ? '☀️ Светлая' : '🌙 Тёмная'}
-          </button>
-          {user ? (
-            <>
-              <button
-                className="btn-ghost small"
-                onClick={() => { clearAuthError(); setShowProfile(true) }}
-              >
-                Личный кабинет
-              </button>
-              <button className="btn-ghost small" onClick={logout}>Выйти</button>
-            </>
-          ) : (
-            <button
-              className="btn-ghost small"
-              onClick={() => { clearAuthError(); setShowAuth(true) }}
-            >
-              Войти / Регистрация
-            </button>
-          )}
-        </div>
+        </button>
       </header>
 
       <div className="app">
@@ -130,22 +171,41 @@ export default function App() {
           onRename={renameChat}
         />
         <div className="chat-col">
-          <button
-            type="button"
-            className="focus-pill"
-            onClick={() => setIsFocus(false)}
-            aria-label="Выйти из фокуса"
-            title="Выйти из фокуса"
-          >
-            Выйти из фокуса
-          </button>
-          {activeChat && (
+          {isFocus && (
+            <div className="focus-toolbar" role="toolbar" aria-label="Панель режима фокуса">
+              <button
+                type="button"
+                className="focus-pill glass-shimmer"
+                onClick={() => setIsFocus(false)}
+                aria-label="Выйти из фокуса"
+                title="Выйти из фокуса"
+              >
+                <FocusIcon size={18} />
+                Выйти из фокуса
+              </button>
+            </div>
+          )}
+          {activeChat ? (
             <ChatWindow
               key={activeChat.id}
               chat={activeChat}
               onAddMessage={addMessage}
               onUpdateChat={updateChat}
+              isFocus={isFocus}
             />
+          ) : (
+            <section className="workspace-empty">
+              <div className="workspace-empty-card">
+                <div className="empty-aurora">
+                  <SparkIcon size={22} />
+                </div>
+                <h2>Нет активного диалога</h2>
+                <p>Создайте новый чат, чтобы открыть рабочую область и начать переписку.</p>
+                <button type="button" className="btn-ghost glass-shimmer workspace-empty-action" onClick={addChat}>
+                  Создать чат
+                </button>
+              </div>
+            </section>
           )}
         </div>
       </div>

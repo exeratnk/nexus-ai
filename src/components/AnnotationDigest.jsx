@@ -49,7 +49,7 @@ export default function AnnotationDigest({ chatName, messages, annotations, onJu
           <button
             key={tab.id}
             type="button"
-            className={`annotation-digest-tab ${filter === tab.id ? 'active' : ''}`}
+            className={`annotation-digest-tab glass-shimmer ${filter === tab.id ? 'active' : ''}`}
             onClick={() => setFilter(tab.id)}
           >
             {tab.label}
@@ -65,10 +65,13 @@ export default function AnnotationDigest({ chatName, messages, annotations, onJu
           <button
             key={item.messageId}
             type="button"
-            className="annotation-digest-item"
+            className="annotation-digest-item glass-shimmer"
             onClick={() => onJump?.(item.messageId)}
           >
-            <span className="annotation-digest-dot" style={{ background: item.color }} />
+            <span
+              className="annotation-digest-dot"
+              style={{ background: item.color }}
+            />
             <span className="annotation-digest-text">{item.preview}</span>
             <span className="annotation-digest-meta">{chatName} · #{item.position}</span>
           </button>

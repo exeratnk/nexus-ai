@@ -8,7 +8,7 @@ export default function AnchorBar({ anchors, onAnchorClick }) {
       {anchors.map((anchor, index) => (
         <button
           key={anchor.id}
-          className="anchor-tab"
+          className="anchor-tab glass-shimmer"
           title={anchor.text}
           onClick={() => onAnchorClick(anchor.id)}
         >
