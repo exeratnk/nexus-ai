@@ -36,6 +36,33 @@ function getChatPreview(chat) {
   return 'Новый проект готов к работе'
 }
 
+function SidebarProfileButton({ user, avatarUrl, onClick }) {
+  const label = user ? 'Открыть профиль' : 'Открыть авторизацию'
+  const title = user ? 'Открыть профиль' : 'Войти или зарегистрироваться'
+
+  return (
+    <button
+      type="button"
+      className="sidebar-profile-button glass-shimmer"
+      onClick={onClick}
+      aria-label={label}
+      title={title}
+    >
+      <div className="avatar-circle">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt="Аватар пользователя" />
+        ) : (
+          (user?.username || 'Г')[0].toUpperCase()
+        )}
+      </div>
+      <div className="sidebar-profile-copy">
+        <div className="sidebar-profile-name">{user?.username || 'Гость'}</div>
+        <div className="sidebar-profile-email">{user?.email || 'Local workspace'}</div>
+      </div>
+    </button>
+  )
+}
+
 function ChatItem({ chat, activeChatId, editingId, editValue, setEditValue, setEditingId, onSelect, onDelete, onRename }) {
   function startEdit(e) {
     e.stopPropagation()
@@ -229,6 +256,9 @@ export default function Sidebar({
   onDeleteFolder,
   onDelete,
   onRename,
+  user,
+  avatarUrl,
+  onProfileClick,
 }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -342,6 +372,10 @@ export default function Sidebar({
         {filteredFolders.length === 0 && looseChats.length === 0 && (
           <div className="sidebar-empty">Ничего не найдено. Попробуйте другой запрос.</div>
         )}
+      </div>
+
+      <div className="sidebar-user-area">
+        <SidebarProfileButton user={user} avatarUrl={avatarUrl} onClick={onProfileClick} />
       </div>
     </aside>
   )

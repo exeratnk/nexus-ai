@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { SparkIcon } from './GlassIcons.jsx'
+import { NexusLogo } from './GlassIcons.jsx'
 
 export default function AuthScreen({ onLogin, onRegister, loading, error, onClearError, onClose }) {
   const [mode, setMode] = useState('login')
@@ -51,7 +51,7 @@ export default function AuthScreen({ onLogin, onRegister, loading, error, onClea
     <div className={`auth-card auth-card-${mode}`}>
       <div className="auth-hero">
         <div className="auth-hero-badge">
-          <SparkIcon size={16} />
+          <NexusLogo size={22} />
           Nexus Access
         </div>
         <h2>{mode === 'login' ? 'Продолжить работу' : 'Создать пространство'}</h2>

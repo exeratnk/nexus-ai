@@ -11,13 +11,13 @@ import {
   EditIcon,
   FolderIcon,
   FocusIcon,
+  NexusLogo,
   LogoutIcon,
   MessageIcon,
   MoonIcon,
   PanelLeftOpenIcon,
   SearchIcon,
   SettingsIcon,
-  SparkIcon,
   SunIcon,
 } from './components/GlassIcons.jsx'
 
@@ -88,13 +88,24 @@ export default function App() {
 
   const avatarUrl = toAbsoluteMediaUrl(user?.avatar)
   const focusButtonLabel = isFocus ? 'Выйти из фокуса' : 'Включить фокус'
+  const profileButtonLabel = user ? 'Открыть профиль' : 'Открыть авторизацию'
+  const profileButtonTitle = user ? 'Открыть профиль' : 'Войти или зарегистрироваться'
+
+  const openProfileEntry = useCallback(() => {
+    clearAuthError()
+    if (user) {
+      setShowProfile(true)
+      return
+    }
+    setShowAuth(true)
+  }, [clearAuthError, user])
 
   return (
     <div id="shell" className={`layout shell ${isFocus ? 'focus' : ''}`}>
       <header className="topbar">
         <div className="topbar-brand">
           <div className="brand-mark">
-            <SparkIcon size={20} />
+            <NexusLogo size={46} />
           </div>
           <div className="brand-copy">
             <span className="brand-kicker">NexusAI OS</span>
@@ -142,33 +153,6 @@ export default function App() {
             </button>
           )}
         </div>
-
-        <button
-          type="button"
-          className="topbar-profile topbar-profile-button glass-shimmer"
-          onClick={() => {
-            clearAuthError()
-            if (user) {
-              setShowProfile(true)
-              return
-            }
-            setShowAuth(true)
-          }}
-          aria-label={user ? 'Открыть профиль' : 'Открыть авторизацию'}
-          title={user ? 'Открыть профиль' : 'Войти или зарегистрироваться'}
-        >
-          <div className="avatar-circle">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Аватар пользователя" />
-            ) : (
-              (user?.username || 'Г')[0].toUpperCase()
-            )}
-          </div>
-          <div>
-            <div className="topbar-name">{user?.username || 'Гость'}</div>
-            <div className="topbar-email">{user?.email || 'Local workspace'}</div>
-          </div>
-        </button>
       </header>
 
       <div className={`app ${isSidebarHidden ? 'sidebar-collapsed' : ''}`}>
@@ -224,6 +208,24 @@ export default function App() {
                 </button>
               </div>
             </div>
+
+            <div className="sidebar-rail-bottom">
+              <button
+                type="button"
+                className="sidebar-rail-btn sidebar-rail-profile glass-shimmer"
+                onClick={openProfileEntry}
+                aria-label={profileButtonLabel}
+                title={profileButtonTitle}
+              >
+                <div className="avatar-circle">
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt="Аватар пользователя" />
+                  ) : (
+                    (user?.username || 'Г')[0].toUpperCase()
+                  )}
+                </div>
+              </button>
+            </div>
           </aside>
         )}
 
@@ -240,23 +242,12 @@ export default function App() {
             onDeleteFolder={deleteFolder}
             onDelete={deleteChat}
             onRename={renameChat}
+            user={user}
+            avatarUrl={avatarUrl}
+            onProfileClick={openProfileEntry}
           />
         )}
         <div className="chat-col">
-          {isFocus && (
-            <div className="focus-toolbar" role="toolbar" aria-label="Панель режима фокуса">
-              <button
-                type="button"
-                className="focus-pill glass-shimmer"
-                onClick={() => setIsFocus(false)}
-                aria-label="Выйти из фокуса"
-                title="Выйти из фокуса"
-              >
-                <FocusIcon size={18} />
-                Выйти из фокуса
-              </button>
-            </div>
-          )}
           {activeChat ? (
             <ChatWindow
               key={activeChat.id}
@@ -265,12 +256,13 @@ export default function App() {
               onAddMessage={addMessage}
               onUpdateChat={updateChat}
               isFocus={isFocus}
+              onExitFocus={() => setIsFocus(false)}
             />
           ) : (
             <section className="workspace-empty">
               <div className="workspace-empty-card">
                 <div className="empty-aurora">
-                  <SparkIcon size={22} />
+                  <NexusLogo size={52} />
                 </div>
                 <h2>Нет активного диалога</h2>
                 <p>Создайте новый чат, чтобы открыть рабочую область и начать переписку.</p>

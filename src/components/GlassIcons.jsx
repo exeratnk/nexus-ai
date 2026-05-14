@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useId } from 'react'
 
 function Icon({ children, size = 18, strokeWidth = 1.8 }) {
   return (
@@ -14,6 +14,76 @@ function Icon({ children, size = 18, strokeWidth = 1.8 }) {
       strokeLinejoin="round"
     >
       {children}
+    </svg>
+  )
+}
+
+export function NexusLogo({ size = 40, ...props }) {
+  const uid = useId().replace(/:/g, '')
+  const mainGradientId = `${uid}-mainGradient`
+  const accentGradientId = `${uid}-accentGradient`
+  const glowId = `${uid}-glow`
+  const softGlowId = `${uid}-softGlow`
+
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 320 320"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+      {...props}
+    >
+      <defs>
+        <linearGradient id={mainGradientId} x1="120" y1="40" x2="260" y2="240" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#6D28D9" />
+          <stop offset="50%" stopColor="#9333EA" />
+          <stop offset="100%" stopColor="#C084FC" />
+        </linearGradient>
+        <linearGradient id={accentGradientId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#F0ABFC" />
+          <stop offset="100%" stopColor="#8B5CF6" />
+        </linearGradient>
+        <filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="10" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id={softGlowId}>
+          <feGaussianBlur stdDeviation="4" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <g transform="translate(50 50)" filter={`url(#${glowId})`}>
+        <circle cx="110" cy="110" r="86" stroke={`url(#${mainGradientId})`} strokeWidth="4" opacity="0.55" />
+        <circle cx="110" cy="110" r="62" stroke={`url(#${accentGradientId})`} strokeWidth="3" opacity="0.45" />
+        <polygon
+          points="110,38 168,74 168,146 110,182 52,146 52,74"
+          fill="none"
+          stroke={`url(#${mainGradientId})`}
+          strokeWidth="8"
+          strokeLinejoin="round"
+        />
+        <path d="M72 78 L148 142" stroke={`url(#${accentGradientId})`} strokeWidth="8" strokeLinecap="round" />
+        <path d="M72 142 L148 78" stroke={`url(#${accentGradientId})`} strokeWidth="8" strokeLinecap="round" />
+        <circle cx="110" cy="110" r="16" fill="#E9D5FF" filter={`url(#${softGlowId})`} />
+        <circle cx="110" cy="38" r="7" fill="#C084FC" />
+        <circle cx="168" cy="74" r="7" fill="#A855F7" />
+        <circle cx="168" cy="146" r="7" fill="#9333EA" />
+        <circle cx="110" cy="182" r="7" fill="#C084FC" />
+        <circle cx="52" cy="146" r="7" fill="#9333EA" />
+        <circle cx="52" cy="74" r="7" fill="#A855F7" />
+        <circle cx="194" cy="110" r="4" fill="#F0ABFC" />
+        <circle cx="26" cy="110" r="4" fill="#F0ABFC" />
+        <circle cx="110" cy="26" r="4" fill="#F0ABFC" />
+        <circle cx="110" cy="194" r="4" fill="#F0ABFC" />
+      </g>
     </svg>
   )
 }

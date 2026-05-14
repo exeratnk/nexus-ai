@@ -5,9 +5,10 @@ import MessageList from './MessageList.jsx'
 import { isAnnotationTag } from './annotationConfig.js'
 import {
   AttachIcon,
+  FocusIcon,
+  NexusLogo,
   SendIcon,
   SkillIcon,
-  SparkIcon,
 } from './GlassIcons.jsx'
 
 const MODEL_OPTIONS = [
@@ -97,7 +98,7 @@ function writeAnnotations(chatId, annotations) {
   localStorage.setItem(getAnnotationStorageKey(chatId), JSON.stringify(normalized))
 }
 
-export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, isFocus }) {
+export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, isFocus, onExitFocus }) {
   const [input, setInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [isTyping, setIsTyping] = useState(false)
@@ -371,7 +372,7 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
         <div className="chat-header">
           <div className="chat-title-stack">
             <span className="chat-eyebrow">
-              <SparkIcon size={13} />
+              <NexusLogo size={16} />
               Активная сессия
             </span>
             <div className="chat-heading-row">
@@ -425,6 +426,21 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
             <span className="toggle-label">Глубокий режим</span>
           </label>
         </div>
+
+        {isFocus && (
+          <div className="focus-toolbar chat-top-focus" role="toolbar" aria-label="Панель режима фокуса">
+            <button
+              type="button"
+              className="focus-pill glass-shimmer"
+              onClick={onExitFocus}
+              aria-label="Выйти из фокуса"
+              title="Выйти из фокуса"
+            >
+              <FocusIcon size={18} />
+              Выйти из фокуса
+            </button>
+          </div>
+        )}
 
         <div className={`skill-panel ${(chat.skills || []).length > 0 ? 'has-skills' : 'is-empty'}`}>
           <div className="skill-panel-header">
@@ -526,7 +542,7 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
               aria-haspopup="dialog"
               title={annotationCount > 0 ? 'Открыть сохраненные аннотации' : 'Сохранённых аннотаций пока нет'}
             >
-              <SparkIcon size={14} />
+              <NexusLogo size={16} />
               <span>Аннотации</span>
               <span className="annotation-toggle-count">{annotationCount}</span>
             </button>
@@ -563,7 +579,6 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
             rows={1}
             disabled={isTyping}
           />
-          <span className="composer-hint">Enter</span>
           <button
             className="btn-send glass-shimmer"
             onClick={handleSend}

@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { TAG_META, TAG_ORDER, getPrimaryTagColor } from './annotationConfig.js'
-import { AttachIcon, SparkIcon } from './GlassIcons.jsx'
+import { AttachIcon, NexusLogo } from './GlassIcons.jsx'
 
 const EMPTY_PROMPTS = [
   'Сделай обзор стратегии',
@@ -99,7 +99,7 @@ export default function MessageList({
       {messages.length === 0 && (
         <div className="empty-state">
           <div className="empty-aurora">
-            <SparkIcon size={24} />
+            <NexusLogo size={52} />
           </div>
           <span className="empty-kicker">NexusAI готов к работе</span>
           <h2>Начните разговор с ясной задачи</h2>
