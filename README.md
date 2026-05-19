@@ -42,6 +42,47 @@ npm run dev:all
 - frontend: `http://127.0.0.1:5173`
 - backend: `http://127.0.0.1:8000`
 
+Примечание: проект запускается без локальной LLM. Для работы AI-чата через `llama.cpp` нужна отдельная установка модели и `llama-server`.
+
+## Подключение локальной LLM через llama.cpp
+
+Сейчас `NexusAI` умеет ходить в локальный `llama-server` по OpenAI-совместимому endpoint-у:
+
+- backend ждёт `llama-server` на `http://127.0.0.1:8080`
+- адрес можно изменить через `LLM_BASE_URL`
+- если `llama-server` требует имя модели, задайте `LLM_UPSTREAM_MODEL`
+- `npm run dev:llm` ищет бинарник через `LLAMA_SERVER_BIN`, а модель через `LLM_MODEL_PATH`
+
+Пример запуска локального сервера:
+
+```bash
+./llm/runtime/llama.cpp/build/bin/llama-server \
+  -m ./llm/models/gemma-3-1b-it-Q5_K_M.gguf \
+  --host 127.0.0.1 \
+  --port 8080 \
+  --no-ui
+```
+
+Или через npm-скрипт проекта:
+
+```bash
+npm run dev:llm
+```
+
+Пример с явными путями на другом ПК:
+
+```bash
+LLAMA_SERVER_BIN=/absolute/path/to/llama-server \
+LLM_MODEL_PATH=/absolute/path/to/model.gguf \
+npm run dev:llm
+```
+
+Если хотите запустить backend с другим адресом LLM:
+
+```bash
+LLM_BASE_URL=http://127.0.0.1:8081 npm run dev:server
+```
+
 ## Отдельный запуск частей проекта
 
 Если нужно запускать клиент и сервер раздельно, можно использовать отдельные команды.

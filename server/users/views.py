@@ -3,6 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from .llm import LLMRequestCancelled, LLMServiceError, cancel_chat, complete_chat
+from .llm_serializers import LLMChatRequestSerializer, LLMChatStopRequestSerializer
 from .models import User, Chat, ProjectFolder
 from .serializers import RegisterSerializer, ProfileSerializer, ChatSerializer, ProjectFolderSerializer
 
@@ -94,3 +96,42 @@ class ChatDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Chat.objects.filter(user=self.request.user)
+
+
+class LLMChatView(APIView):
+    """POST /api/auth/llm/chat/"""
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        serializer = LLMChatRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            text = complete_chat(
+                serializer.validated_data['messages'],
+                deep_mode=serializer.validated_data.get('deep_mode', False),
+                request_id=serializer.validated_data.get('request_id'),
+            )
+        except LLMRequestCancelled:
+            return Response({'detail': 'Генерация остановлена.'}, status=status.HTTP_409_CONFLICT)
+        except LLMServiceError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        return Response({
+            'message': {
+                'role': 'bot',
+                'text': text,
+            }
+        }, status=status.HTTP_200_OK)
+
+
+class LLMChatStopView(APIView):
+    """POST /api/auth/llm/chat/stop/"""
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request):
+        serializer = LLMChatStopRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        stopped = cancel_chat(serializer.validated_data['request_id'])
+        return Response({'stopped': stopped}, status=status.HTTP_200_OK)

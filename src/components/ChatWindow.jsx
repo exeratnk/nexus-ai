@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react'
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { generateChatCompletion, stopChatCompletion } from '../api.js'
 import AnchorBar from './AnchorBar.jsx'
 import AnnotationDigest from './AnnotationDigest.jsx'
 import MessageList from './MessageList.jsx'
@@ -8,6 +9,7 @@ import {
   FocusIcon,
   NexusLogo,
   SendIcon,
+  StopIcon,
   SkillIcon,
 } from './GlassIcons.jsx'
 
@@ -17,37 +19,8 @@ const MODEL_OPTIONS = [
   { value: 'nexus-3.8', label: 'nexus-3.8' },
 ]
 
-const MOCK_RESPONSES = [
-  'Интересный вопрос! Давайте разберём его подробнее.',
-  'Хорошо, я понял. Вот что могу сказать по этому поводу.',
-  'Это действительно важная тема. Постараюсь объяснить понятно.',
-  'Отличный вопрос! В двух словах: всё зависит от контекста.',
-  'Давайте подумаем об этом вместе. Есть несколько аспектов.',
-  'Согласен с вашей точкой зрения. Добавлю кое-что важное.',
-  'Понял вас. Это классическая задача с несколькими решениями.',
-  'Интересная постановка! Вот мои мысли на этот счёт.',
-]
-
-const DEEP_RESPONSES = [
-  'Перечитываю контекст и раскладываю по полочкам. Вот ход мыслей: ...',
-  'Давайте подойдём системно: сформулирую гипотезы, проверю допущения и предложу план.',
-  'Разберём по слоям: цель → ограничения → варианты → риски. Ниже ключевые выводы.',
-  'Сделаю короткий разбор и приведу несколько альтернативных подходов.',
-  'Окей, погружусь глубже: сначала уточню задачу, затем дам пошаговое решение.',
-]
 const ANNOTATION_KEY_PREFIX = 'chat_annotations_'
 const COMPOSER_MIN_HEIGHT = 44
-
-function getMockResponse() {
-  return MOCK_RESPONSES[Math.floor(Math.random() * MOCK_RESPONSES.length)]
-}
-
-function getDeepResponse(model, hasFile) {
-  const base = DEEP_RESPONSES[Math.floor(Math.random() * DEEP_RESPONSES.length)]
-  const modelTag = model ? ` (модель: ${model})` : ''
-  const fileNote = hasFile ? ' Учту приложенный файл.' : ''
-  return `${base}${fileNote}${modelTag}`
-}
 
 function formatBytes(bytes) {
   if (!bytes || Number.isNaN(bytes)) return ''
@@ -59,6 +32,14 @@ function formatBytes(bytes) {
 
 function getAnnotationStorageKey(chatId) {
   return `${ANNOTATION_KEY_PREFIX}${chatId}`
+}
+
+function createRequestId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+
+  return `req-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 function normalizeAnnotationRecord(raw) {
@@ -98,7 +79,7 @@ function writeAnnotations(chatId, annotations) {
   localStorage.setItem(getAnnotationStorageKey(chatId), JSON.stringify(normalized))
 }
 
-export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, isFocus, onExitFocus }) {
+export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, isFocus, onExitFocus, accessToken }) {
   const [input, setInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [isTyping, setIsTyping] = useState(false)
@@ -108,6 +89,24 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
   const annotationPopoverRef = useRef(null)
+  const abortControllerRef = useRef(null)
+  const activeRequestIdRef = useRef(null)
+
+  const cancelActiveRequest = useCallback((notifyBackend = true) => {
+    const requestId = activeRequestIdRef.current
+    const controller = abortControllerRef.current
+
+    activeRequestIdRef.current = null
+    abortControllerRef.current = null
+
+    if (notifyBackend && requestId) {
+      stopChatCompletion(accessToken, requestId).catch(error => {
+        console.error('Не удалось остановить генерацию на backend:', error)
+      })
+    }
+
+    controller?.abort()
+  }, [accessToken])
 
 
   const anchors = chat.messages
@@ -176,6 +175,10 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
       document.removeEventListener('keydown', handleKeyDown)
     }
   }, [isAnnotationPopoverOpen])
+
+  useEffect(() => () => {
+    cancelActiveRequest(true)
+  }, [cancelActiveRequest])
 
   function scrollToAnchor(msgId) {
     const el = document.getElementById(`msg-${msgId}`)
@@ -272,24 +275,51 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
         : [],
       timestamp: Date.now(),
     }
+    const nextMessages = [...chat.messages, userMsg]
     onAddMessage(chat.id, userMsg)
 
 
     setIsTyping(true)
-    const baseDelay = 800 + Math.random() * 700
-    const deepExtra = chat.deepMode ? 900 : 0
-    await new Promise(r => setTimeout(r, baseDelay + deepExtra))
+    const requestId = createRequestId()
+    activeRequestIdRef.current = requestId
+    abortControllerRef.current = new AbortController()
+    try {
+      const response = await generateChatCompletion(accessToken, {
+        messages: nextMessages,
+        model: chat.model,
+        deep_mode: chat.deepMode,
+        request_id: requestId,
+      }, abortControllerRef.current.signal)
 
-    const botMsg = {
-      id: (Date.now() + 1).toString(),
-      role: 'bot',
-      text: chat.deepMode
-        ? getDeepResponse(chat.model, Boolean(selectedFile))
-        : getMockResponse(),
-      timestamp: Date.now(),
+      const botMsg = {
+        id: (Date.now() + 1).toString(),
+        role: 'bot',
+        text: response?.message?.text || 'Модель вернула пустой ответ.',
+        timestamp: Date.now(),
+      }
+      onAddMessage(chat.id, botMsg)
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        return
+      }
+      const botMsg = {
+        id: (Date.now() + 1).toString(),
+        role: 'bot',
+        text: `Ошибка LLM: ${error.message}`,
+        timestamp: Date.now(),
+      }
+      onAddMessage(chat.id, botMsg)
+    } finally {
+      if (activeRequestIdRef.current === requestId) {
+        activeRequestIdRef.current = null
+      }
+      abortControllerRef.current = null
+      setIsTyping(false)
     }
-    onAddMessage(chat.id, botMsg)
-    setIsTyping(false)
+  }
+
+  function handleStop() {
+    cancelActiveRequest(true)
   }
 
   function handleKeyDown(e) {
@@ -349,6 +379,7 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
   }
 
   function applyPrompt(prompt) {
+    if (isTyping) return
     setInput(prompt)
     requestAnimationFrame(() => {
       if (!textareaRef.current) return
@@ -577,16 +608,15 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             rows={1}
-            disabled={isTyping}
           />
           <button
             className="btn-send glass-shimmer"
-            onClick={handleSend}
-            disabled={(!input.trim() && !selectedFile) || isTyping}
-            aria-label="Отправить сообщение"
-            title="Отправить сообщение"
+            onClick={isTyping ? handleStop : handleSend}
+            disabled={!isTyping && !input.trim() && !selectedFile}
+            aria-label={isTyping ? 'Остановить запрос' : 'Отправить сообщение'}
+            title={isTyping ? 'Остановить запрос' : 'Отправить сообщение'}
           >
-            <SendIcon size={18} />
+            {isTyping ? <StopIcon size={18} /> : <SendIcon size={18} />}
           </button>
         </div>
       </div>

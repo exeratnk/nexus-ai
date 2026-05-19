@@ -2,6 +2,8 @@ const BASE = 'http://127.0.0.1:8000/api/auth'
 const API_ORIGIN = 'http://127.0.0.1:8000'
 const CHATS_BASE = `${BASE}/chats`
 const FOLDERS_BASE = `${BASE}/folders`
+const LLM_CHAT_BASE = `${BASE}/llm/chat/`
+const LLM_CHAT_STOP_BASE = `${BASE}/llm/chat/stop/`
 
 function extractError(data, fallback) {
   if (!data) return fallback
@@ -30,6 +32,9 @@ async function request(url, options = {}) {
     }
     return data
   } catch (e) {
+    if (e.name === 'AbortError') {
+      throw e
+    }
     if (e.name === 'TypeError') {
       throw new Error('Сервер недоступен. Проверьте, что backend запущен на http://127.0.0.1:8000')
     }
@@ -163,5 +168,38 @@ export async function deleteChat(accessToken, chatId) {
   return request(`${CHATS_BASE}/${chatId}/`, {
     method: 'DELETE',
     headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+}
+
+export async function generateChatCompletion(accessToken, data, signal) {
+  const headers = {
+    'Content-Type': 'application/json',
+  }
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`
+  }
+
+  return request(LLM_CHAT_BASE, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(data),
+    signal,
+  })
+}
+
+export async function stopChatCompletion(accessToken, requestId) {
+  const headers = {
+    'Content-Type': 'application/json',
+  }
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`
+  }
+
+  return request(LLM_CHAT_STOP_BASE, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ request_id: requestId }),
   })
 }

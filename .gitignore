@@ -7,3 +7,8 @@ server/venv/
 server/media/
 server/**/__pycache__/
 *.pyc
+server/db.sqlite3
+llm/runtime/
+llm/models/
+*.gguf
+llm/runtime/llama.cpp/build/

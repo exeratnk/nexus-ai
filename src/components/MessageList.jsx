@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { TAG_META, TAG_ORDER, getPrimaryTagColor } from './annotationConfig.js'
 import { AttachIcon, NexusLogo } from './GlassIcons.jsx'
 
@@ -54,10 +56,44 @@ function NoteIcon() {
   )
 }
 
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <rect x="9" y="9" width="10" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M7 15H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function CopyDoneIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M5.5 12.5 9.7 16.7 18.5 7.9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 const ICONS = {
   important: <ImportantIcon />,
   save: <SaveIcon />,
   check: <CheckIcon />,
+}
+
+function MarkdownMessage({ text }) {
+  const source = typeof text === 'string' ? text : ''
+
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        a: ({ node: _node, ...props }) => (
+          <a {...props} target="_blank" rel="noreferrer noopener" />
+        ),
+      }}
+    >
+      {source}
+    </ReactMarkdown>
+  )
 }
 
 export default function MessageList({
@@ -72,6 +108,14 @@ export default function MessageList({
   const [hoveredId, setHoveredId] = useState(null)
   const [editingNoteId, setEditingNoteId] = useState(null)
   const [noteDraft, setNoteDraft] = useState('')
+  const [copiedId, setCopiedId] = useState(null)
+  const copiedResetRef = useRef(null)
+
+  useEffect(() => () => {
+    if (copiedResetRef.current) {
+      clearTimeout(copiedResetRef.current)
+    }
+  }, [])
 
   const messageIndexMap = useMemo(() => {
     const map = {}
@@ -92,6 +136,23 @@ export default function MessageList({
     const trimmed = noteDraft.trim()
     setNote?.(String(messageId), trimmed)
     setEditingNoteId(null)
+  }
+
+  async function handleCopyMessage(messageId, text) {
+    if (!navigator?.clipboard?.writeText) return
+
+    try {
+      await navigator.clipboard.writeText(typeof text === 'string' ? text : '')
+      setCopiedId(String(messageId))
+      if (copiedResetRef.current) {
+        clearTimeout(copiedResetRef.current)
+      }
+      copiedResetRef.current = setTimeout(() => {
+        setCopiedId(current => (current === String(messageId) ? null : current))
+      }, 1800)
+    } catch {
+      return
+    }
   }
 
   return (
@@ -152,7 +213,20 @@ export default function MessageList({
               <div className="message-role">
                 {msg.role === 'user' ? 'Вы' : 'NexusAI'}
               </div>
-              <div className="message-text">{msg.text}</div>
+              <div className="message-text markdown-body">
+                <MarkdownMessage text={msg.text} />
+              </div>
+              <div className="message-actions">
+                <button
+                  type="button"
+                  className={`message-copy-btn ${copiedId === messageId ? 'copied' : ''}`}
+                  onClick={() => handleCopyMessage(messageId, msg.text)}
+                  aria-label={copiedId === messageId ? 'Сообщение скопировано' : 'Копировать сообщение'}
+                  title={copiedId === messageId ? 'Скопировано' : 'Копировать'}
+                >
+                  {copiedId === messageId ? <CopyDoneIcon /> : <CopyIcon />}
+                </button>
+              </div>
 
               {Array.isArray(msg.attachments) && msg.attachments.length > 0 && (
                 <div className="attachment-list">

@@ -9,6 +9,8 @@ from .views import (
     ProjectFolderDetailView,
     ChatListCreateView,
     ChatDetailView,
+    LLMChatView,
+    LLMChatStopView,
 )
 
 urlpatterns = [
@@ -21,4 +23,6 @@ urlpatterns = [
     path('folders/<int:pk>/', ProjectFolderDetailView.as_view(), name='folder-detail'),
     path('chats/', ChatListCreateView.as_view(), name='chat-list'),
     path('chats/<int:pk>/', ChatDetailView.as_view(), name='chat-detail'),
+    path('llm/chat/', LLMChatView.as_view(), name='llm-chat'),
+    path('llm/chat/stop/', LLMChatStopView.as_view(), name='llm-chat-stop'),
 ]

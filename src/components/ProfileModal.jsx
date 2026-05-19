@@ -8,7 +8,6 @@ function getInitialForm(user) {
     email: user?.email || '',
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
-    bio: user?.bio || '',
   }
 }
 
@@ -98,7 +97,6 @@ export default function ProfileModal({
       email: form.email.trim(),
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
-      bio: form.bio.trim(),
     }
 
     try {
@@ -220,10 +218,6 @@ export default function ProfileModal({
               <span>Имя</span>
               <strong>{fullName}</strong>
             </div>
-            <div className="profile-summary-row">
-              <span>Био</span>
-              <strong>{form.bio.trim() || 'Пока без описания'}</strong>
-            </div>
           </div>
         </aside>
 
@@ -283,27 +277,6 @@ export default function ProfileModal({
                 </div>
               </label>
             </div>
-          </div>
-
-          <div className="profile-form-section">
-            <div className="profile-section-head">
-              <h3>О вас</h3>
-              <p>Короткое описание помогает сделать профиль живее и заметнее.</p>
-            </div>
-
-            <label className="auth-field">
-              <span>О себе</span>
-              <div className="auth-field-control auth-field-control-textarea">
-                <textarea
-                  className="profile-bio"
-                  name="bio"
-                  value={form.bio}
-                  onChange={handleChange}
-                  placeholder="Расскажите немного о себе"
-                  rows={5}
-                />
-              </div>
-            </label>
           </div>
 
           {(localError || error) && (

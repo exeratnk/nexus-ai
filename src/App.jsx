@@ -257,6 +257,7 @@ export default function App() {
               onUpdateChat={updateChat}
               isFocus={isFocus}
               onExitFocus={() => setIsFocus(false)}
+              accessToken={accessToken}
             />
           ) : (
             <section className="workspace-empty">

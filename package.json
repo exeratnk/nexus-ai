@@ -6,6 +6,7 @@
     "setup": "node scripts/setup.mjs",
     "dev": "vite",
     "dev:server": "node scripts/run-backend.mjs",
+    "dev:llm": "node scripts/run-llm.mjs",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
     "test:backend": "node scripts/run-backend.mjs test users",
     "build": "vite build",
@@ -13,7 +14,9 @@
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
