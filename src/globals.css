@@ -61,6 +61,13 @@
   --annotation-bg: rgba(175, 169, 236, 0.12);
   --bubble-user-border: rgba(255, 255, 255, 0.15);
   --fallback-solid: rgba(20, 20, 20, 0.95);
+  --code-inline-bg: rgba(255, 255, 255, 0.08);
+  --code-inline-border: rgba(255, 255, 255, 0.06);
+  --code-block-bg: rgba(10, 14, 22, 0.72);
+  --code-block-border: rgba(255, 255, 255, 0.08);
+  --code-block-text: #e8edf8;
+  --code-block-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --blockquote-border: rgba(255, 255, 255, 0.18);
   --sidebar-w: 280px;
   --page-gradient:
     radial-gradient(circle at top left, rgba(78, 96, 148, 0.14), transparent 28%),
@@ -113,6 +120,13 @@
   --annotation-bg: rgba(175, 169, 236, 0.12);
   --bubble-user-border: rgba(255, 255, 255, 0.15);
   --fallback-solid: rgba(20, 20, 20, 0.95);
+  --code-inline-bg: rgba(255, 255, 255, 0.08);
+  --code-inline-border: rgba(255, 255, 255, 0.06);
+  --code-block-bg: rgba(10, 14, 22, 0.72);
+  --code-block-border: rgba(255, 255, 255, 0.08);
+  --code-block-text: #e8edf8;
+  --code-block-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --blockquote-border: rgba(255, 255, 255, 0.18);
   --page-gradient:
     radial-gradient(circle at top left, rgba(78, 96, 148, 0.14), transparent 28%),
     radial-gradient(circle at top right, rgba(142, 102, 232, 0.18), transparent 24%),
@@ -171,6 +185,13 @@
   --annotation-bg: rgba(114, 103, 212, 0.12);
   --bubble-user-border: rgba(255, 255, 255, 0.72);
   --fallback-solid: rgba(255, 255, 255, 0.95);
+  --code-inline-bg: rgba(115, 129, 182, 0.10);
+  --code-inline-border: rgba(115, 129, 182, 0.18);
+  --code-block-bg: rgba(248, 251, 255, 0.96);
+  --code-block-border: rgba(151, 168, 210, 0.34);
+  --code-block-text: #13233c;
+  --code-block-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 10px 26px rgba(104, 122, 168, 0.10);
+  --blockquote-border: rgba(114, 103, 212, 0.28);
   --page-gradient:
     radial-gradient(circle at top left, rgba(117, 174, 255, 0.28), transparent 26%),
     radial-gradient(circle at top right, rgba(205, 182, 255, 0.26), transparent 22%),
