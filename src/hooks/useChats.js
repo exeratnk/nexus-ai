@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+﻿import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   getChats as apiGetChats,
   createChat as apiCreateChat,
@@ -324,7 +324,10 @@ export function useChats({ user, accessToken, authEvent }) {
 
     if (!isAuthenticated) {
       const newFolder = createFolder(folderName)
+      const newChat = createChat(`\u0427\u0430\u0442 ${chatsRef.current.length + 1}`, newFolder.id)
       setFolders(prev => [...prev, newFolder])
+      setChats(prev => [...prev, newChat])
+      setActiveChatId(newChat.id)
       return newFolder
     }
 
@@ -332,6 +335,11 @@ export function useChats({ user, accessToken, authEvent }) {
       const created = await apiCreateFolder(accessToken, { name: folderName })
       const normalized = normalizeFolder(created)
       setFolders(prev => [...prev, normalized])
+      const nextChatName = `\u0427\u0430\u0442 ${chatsRef.current.length + 1}`
+      const createdChat = await apiCreateChat(accessToken, toApiPayload(createChat(nextChatName, normalized.id)))
+      const normalizedChat = applyUiStateToChats([normalizeChat(createdChat)], readChatUiState(user?.id))[0]
+      setChats(prev => [...prev, normalizedChat])
+      setActiveChatId(normalizedChat.id)
       return normalized
     } catch (e) {
       console.error('Не удалось создать папку:', e)
@@ -507,3 +515,4 @@ export function useChats({ user, accessToken, authEvent }) {
     updateChat,
   }
 }
+

@@ -4,10 +4,12 @@
   "type": "module",
   "scripts": {
     "setup": "node scripts/setup.mjs",
-    "dev": "vite",
+    "dev": "node scripts/run-dev-all.mjs",
+    "start": "node scripts/run-dev-all.mjs",
+    "dev:client": "node node_modules/vite/bin/vite.js",
     "dev:server": "node scripts/run-backend.mjs",
     "dev:llm": "node scripts/run-llm.mjs",
-    "dev:all": "concurrently \"npm run dev\" \"npm run dev:server\"",
+    "dev:all": "node scripts/run-dev-all.mjs",
     "test:backend": "node scripts/run-backend.mjs test users",
     "build": "vite build",
     "preview": "vite preview"
@@ -20,7 +22,6 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",
-    "concurrently": "^8.2.2",
     "vite": "^6.4.2"
   }
 }

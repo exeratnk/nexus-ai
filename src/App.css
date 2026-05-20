@@ -555,6 +555,7 @@ select:disabled {
   gap: 8px;
   flex: 1;
   min-height: 0;
+  margin: 0;
   overflow-y: auto;
   padding: 12px 0 0;
 }
@@ -577,7 +578,8 @@ select:disabled {
 
 .chat-item {
   position: relative;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 12px;
   min-height: 62px;
@@ -619,11 +621,17 @@ select:disabled {
 }
 
 .chat-copy {
+  display: flex;
   flex: 1;
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+}
+
+.chat-count,
+.chat-actions {
+  flex-shrink: 0;
 }
 
 .chat-name,
@@ -652,6 +660,7 @@ select:disabled {
 .chat-actions {
   display: none;
   gap: 6px;
+  align-items: center;
 }
 
 .chat-item:hover .chat-actions,
@@ -699,6 +708,10 @@ select:disabled {
   gap: 10px;
   padding-top: 12px;
   overflow-y: auto;
+}
+
+.sidebar-tree > * {
+  flex-shrink: 0;
 }
 
 .sidebar-tree::-webkit-scrollbar {
@@ -767,14 +780,15 @@ select:disabled {
 
 .folder-group {
   display: flex;
+  flex: 0 0 auto;
   flex-direction: column;
   gap: 8px;
 }
 
 .folder-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 0 2px;
 }
@@ -786,12 +800,15 @@ select:disabled {
 }
 
 .folder-label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   min-width: 0;
   gap: 8px;
   color: var(--text-2);
 }
 
 .folder-name {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -814,16 +831,17 @@ select:disabled {
 
 .folder-actions {
   gap: 6px;
+  flex-shrink: 0;
 }
 
 .chat-list-nested {
-  flex: initial;
+  flex: 0 0 auto;
   overflow: visible;
   padding: 0 0 0 10px;
 }
 
 .chat-list-loose {
-  flex: initial;
+  flex: 0 0 auto;
   overflow: visible;
   padding-top: 0;
 }

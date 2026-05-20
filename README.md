@@ -151,3 +151,13 @@ npm run setup
 ```text
 http://127.0.0.1:8000
 ```
+
+## Cross-platform dev start
+
+Use the same command on Windows and macOS:
+
+```bash
+npm run dev
+```
+
+This starts both the frontend and backend through Node launchers, without `npm.cmd` in the middle, so `Ctrl+C` shuts the project down cleanly on Windows too.

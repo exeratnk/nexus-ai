@@ -44,7 +44,7 @@ function resolvePython() {
 const python = resolvePython()
 
 if (!python) {
-  console.error('Python не найден. Установите Python 3.10+ и выполните `npm run setup`.')
+  console.error('Python was not found. Install Python 3.10+ and run `npm run setup`.')
   process.exit(1)
 }
 
@@ -68,7 +68,7 @@ function runManageSync(extraArgs) {
 }
 
 if (isRunserverCommand) {
-  console.log('Синхронизирую базу данных...')
+  console.log('Applying database migrations...')
   runManageSync(['migrate', '--noinput'])
 }
 
@@ -80,6 +80,36 @@ const child = spawn(
     stdio: 'inherit',
   }
 )
+
+let shuttingDown = false
+
+function shutdown(signal = 'SIGINT') {
+  if (shuttingDown) {
+    return
+  }
+
+  shuttingDown = true
+
+  try {
+    child.kill(signal)
+  } catch {
+  }
+
+  setTimeout(() => {
+    try {
+      child.kill('SIGTERM')
+    } catch {
+    }
+  }, 1500).unref()
+}
+
+process.on('SIGINT', () => {
+  shutdown('SIGINT')
+})
+
+process.on('SIGTERM', () => {
+  shutdown('SIGTERM')
+})
 
 child.on('exit', code => {
   process.exit(code ?? 0)
