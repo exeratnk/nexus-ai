@@ -21,6 +21,8 @@ const MODEL_OPTIONS = [
 
 const ANNOTATION_KEY_PREFIX = 'chat_annotations_'
 const COMPOSER_MIN_HEIGHT = 44
+const PAGE_SCROLL_STEP = 0.85
+const BOTTOM_SNAP_THRESHOLD = 40
 
 function formatBytes(bytes) {
   if (!bytes || Number.isNaN(bytes)) return ''
@@ -91,6 +93,7 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
   const annotationPopoverRef = useRef(null)
   const abortControllerRef = useRef(null)
   const activeRequestIdRef = useRef(null)
+  const shouldStickToBottomRef = useRef(true)
 
   const cancelActiveRequest = useCallback((notifyBackend = true) => {
     const requestId = activeRequestIdRef.current
@@ -131,11 +134,30 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
     const container = messagesContainerRef.current
     if (!container) return
 
+    if (!shouldStickToBottomRef.current) return
+
     container.scrollTo({
       top: container.scrollHeight,
       behavior: chat.messages.length > 0 ? 'smooth' : 'auto',
     })
   }, [chat.messages, isTyping])
+
+  useEffect(() => {
+    const container = messagesContainerRef.current
+    if (!container) return
+
+    function updateStickiness() {
+      const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight
+      shouldStickToBottomRef.current = distanceToBottom <= BOTTOM_SNAP_THRESHOLD
+    }
+
+    updateStickiness()
+    container.addEventListener('scroll', updateStickiness, { passive: true })
+
+    return () => {
+      container.removeEventListener('scroll', updateStickiness)
+    }
+  }, [chat.id])
 
   useEffect(() => {
     const stored = readAnnotations(chat.id)
@@ -326,6 +348,19 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+      return
+    }
+
+    if (e.key === 'PageUp' || e.key === 'PageDown') {
+      const container = messagesContainerRef.current
+      if (!container) return
+
+      e.preventDefault()
+      const direction = e.key === 'PageUp' ? -1 : 1
+      container.scrollBy({
+        top: Math.round(container.clientHeight * PAGE_SCROLL_STEP * direction),
+        behavior: 'auto',
+      })
     }
   }
 
