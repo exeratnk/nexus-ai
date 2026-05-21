@@ -1,5 +1,5 @@
 .layout {
-  --codex-undo-test: 1;
+  --panel-bg: rgb(45 46 54);
   --panel-bg-strong: rgba(32, 37, 46, 0.88);
   --panel-bg-soft: rgba(255, 255, 255, 0.055);
   --panel-border: rgba(190, 199, 214, 0.12);
@@ -555,7 +555,6 @@ select:disabled {
   gap: 8px;
   flex: 1;
   min-height: 0;
-  margin: 0;
   overflow-y: auto;
   padding: 12px 0 0;
 }
@@ -578,8 +577,7 @@ select:disabled {
 
 .chat-item {
   position: relative;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  display: flex;
   align-items: center;
   gap: 12px;
   min-height: 62px;
@@ -621,17 +619,11 @@ select:disabled {
 }
 
 .chat-copy {
-  display: flex;
   flex: 1;
   min-width: 0;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-}
-
-.chat-count,
-.chat-actions {
-  flex-shrink: 0;
 }
 
 .chat-name,
@@ -660,7 +652,6 @@ select:disabled {
 .chat-actions {
   display: none;
   gap: 6px;
-  align-items: center;
 }
 
 .chat-item:hover .chat-actions,
@@ -708,10 +699,6 @@ select:disabled {
   gap: 10px;
   padding-top: 12px;
   overflow-y: auto;
-}
-
-.sidebar-tree > * {
-  flex-shrink: 0;
 }
 
 .sidebar-tree::-webkit-scrollbar {
@@ -780,15 +767,14 @@ select:disabled {
 
 .folder-group {
   display: flex;
-  flex: 0 0 auto;
   flex-direction: column;
   gap: 8px;
 }
 
 .folder-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   padding: 0 2px;
 }
@@ -800,15 +786,12 @@ select:disabled {
 }
 
 .folder-label {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
   min-width: 0;
   gap: 8px;
   color: var(--text-2);
 }
 
 .folder-name {
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -831,17 +814,16 @@ select:disabled {
 
 .folder-actions {
   gap: 6px;
-  flex-shrink: 0;
 }
 
 .chat-list-nested {
-  flex: 0 0 auto;
+  flex: initial;
   overflow: visible;
   padding: 0 0 0 10px;
 }
 
 .chat-list-loose {
-  flex: 0 0 auto;
+  flex: initial;
   overflow: visible;
   padding-top: 0;
 }
@@ -1137,6 +1119,12 @@ select:disabled {
   border-radius: 0;
   min-width: 0;
 }
+.annotation-digest{
+  flex-shrink: 1;
+  border-radius: 13px;
+  min-width: 0;
+}
+  
 
 .chat-meta-rail .anchor-bar,
 .chat-meta-rail .annotation-digest {
@@ -1849,7 +1837,7 @@ select:disabled {
   border-radius: 18px;
   overflow: auto;
   z-index: 12;
-  background: var(--panel-bg);
+  background: var(--panel-bg); 
   border: 1px solid var(--panel-border);
   box-shadow: var(--panel-shadow);
   -webkit-backdrop-filter: var(--control-blur);
@@ -2095,15 +2083,6 @@ select:disabled {
   animation: none;
 }
 
-.auth-tabs .glass-shimmer::before,
-.auth-submit.glass-shimmer::before,
-.sidebar-profile-button.glass-shimmer::before,
-.sidebar-rail-profile.glass-shimmer::before,
-.profile-card .glass-shimmer::before {
-  animation: none;
-  opacity: 0;
-}
-
 .auth-header,
 .profile-header {
   display: flex;
@@ -2283,11 +2262,6 @@ select:disabled {
   border-radius: 16px;
 }
 
-.profile-avatar-row::after {
-  animation: none;
-  opacity: 0;
-}
-
 .profile-avatar {
   width: 64px;
   height: 64px;
@@ -2303,7 +2277,7 @@ select:disabled {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--panel-border);
   box-shadow: 0 12px 28px rgba(112, 182, 255, 0.14);
-  animation: none;
+  animation: liquid-float 7.5s ease-in-out infinite;
 }
 
 .profile-overview-copy {
