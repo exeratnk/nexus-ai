@@ -1126,6 +1126,12 @@ select:disabled {
 }
   
 
+.annotation-digest{
+  flex-shrink: 1;
+  border-radius: 13px;
+  min-width: 0;
+}
+
 .chat-meta-rail .anchor-bar,
 .chat-meta-rail .annotation-digest {
   overflow: visible;
@@ -1673,6 +1679,10 @@ select:disabled {
   transition: opacity var(--transition-fast);
 }
 
+.msg-wrap-compact-bot .hover-toolbar {
+  left: 72px;
+  right: auto;
+}
 .msg-wrap:hover .hover-toolbar,
 .msg-wrap:focus-within .hover-toolbar,
 .hover-toolbar.visible,
@@ -3280,7 +3290,7 @@ select:disabled {
   .auth-card,
   .profile-card {
     padding: 16px;
-    overflow-y: auto;
+    overflow-y: hidden;
     scrollbar-width: thin;
   }
 

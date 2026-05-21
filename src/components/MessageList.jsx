@@ -191,13 +191,18 @@ export default function MessageList({
         const note = annotation?.note || null
         const primaryColor = getPrimaryTagColor(annotation)
         const isBotMessage = msg.role === 'bot'
+        const isCompactBotMessage = isBotMessage
+          && typeof msg.text === 'string'
+          && msg.text.trim().length <= 32
+          && !msg.text.includes('\n')
+          && (!Array.isArray(msg.attachments) || msg.attachments.length === 0)
         const isToolbarVisible = hoveredId === messageId
         const isNoteEditing = editingNoteId === messageId
 
         return (
           <div
             key={msg.id}
-            className={`msg-wrap msg-wrap-${msg.role}`}
+            className={`msg-wrap msg-wrap-${msg.role}${isCompactBotMessage ? ' msg-wrap-compact-bot' : ''}`}
             onMouseEnter={() => setHoveredId(messageId)}
             onMouseLeave={() => setHoveredId(null)}
           >
