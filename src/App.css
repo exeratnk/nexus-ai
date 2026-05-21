@@ -2095,6 +2095,15 @@ select:disabled {
   animation: none;
 }
 
+.auth-tabs .glass-shimmer::before,
+.auth-submit.glass-shimmer::before,
+.sidebar-profile-button.glass-shimmer::before,
+.sidebar-rail-profile.glass-shimmer::before,
+.profile-card .glass-shimmer::before {
+  animation: none;
+  opacity: 0;
+}
+
 .auth-header,
 .profile-header {
   display: flex;
@@ -2274,6 +2283,11 @@ select:disabled {
   border-radius: 16px;
 }
 
+.profile-avatar-row::after {
+  animation: none;
+  opacity: 0;
+}
+
 .profile-avatar {
   width: 64px;
   height: 64px;
@@ -2289,7 +2303,7 @@ select:disabled {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid var(--panel-border);
   box-shadow: 0 12px 28px rgba(112, 182, 255, 0.14);
-  animation: liquid-float 7.5s ease-in-out infinite;
+  animation: none;
 }
 
 .profile-overview-copy {
