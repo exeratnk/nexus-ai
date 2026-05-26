@@ -13,14 +13,19 @@ import {
 const GUEST_STORAGE_KEY = 'chatai_workspace_v2'
 const LEGACY_GUEST_STORAGE_KEY = 'chatai_chats'
 const UI_STORAGE_PREFIX = 'chatai_workspace_ui'
-const DEFAULT_MODEL = 'nexus-3.8'
+const FREE_DEFAULT_MODEL = 'nexus-mini'
+const PRO_DEFAULT_MODEL = 'nexus-3.8'
 
 function normalizeModel(model) {
   if (model === 'gpt-4o') return 'nexus-3.8'
   if (model === 'gpt-4o-mini') return 'nexus-mini'
   if (model === 'gpt-3.5-turbo') return 'nexus-3.7 code'
   if (model === 'nexus-3.7 code' || model === 'nexus-mini' || model === 'nexus-3.8') return model
-  return DEFAULT_MODEL
+  return FREE_DEFAULT_MODEL
+}
+
+function getDefaultModel(user) {
+  return user?.subscription?.is_pro ? PRO_DEFAULT_MODEL : FREE_DEFAULT_MODEL
 }
 
 function normalizeSkillList(raw) {
@@ -79,14 +84,14 @@ function createFolder(name) {
   }
 }
 
-function createChat(name, folderId = null) {
+function createChat(name, folderId = null, user = null) {
   return {
     id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     name,
     folderId,
     messages: [],
     createdAt: Date.now(),
-    model: normalizeModel(DEFAULT_MODEL),
+    model: normalizeModel(getDefaultModel(user)),
     deepMode: false,
     skills: [],
     annotations: {},
@@ -203,7 +208,7 @@ function toApiPayload(chat) {
 export function useChats({ user, accessToken, authEvent }) {
   const isAuthenticated = Boolean(user?.id && accessToken)
   const [folders, setFolders] = useState([])
-  const [chats, setChats] = useState([createChat('Чат 1')])
+  const [chats, setChats] = useState([createChat('Чат 1', null, user)])
   const [activeChatId, setActiveChatId] = useState(null)
   const [loading, setLoading] = useState(true)
   const chatsRef = useRef(chats)
@@ -240,7 +245,7 @@ export function useChats({ user, accessToken, authEvent }) {
 
       if (!isAuthenticated) {
         const guestWorkspace = readGuestWorkspaceFromStorage()
-        const initialChats = guestWorkspace.chats.length > 0 ? guestWorkspace.chats : [createChat('Чат 1')]
+        const initialChats = guestWorkspace.chats.length > 0 ? guestWorkspace.chats : [createChat('Чат 1', null, user)]
         if (cancelled) return
         setFolders(guestWorkspace.folders)
         setChats(initialChats)
@@ -320,11 +325,11 @@ export function useChats({ user, accessToken, authEvent }) {
   )
 
   async function addFolder(name = '') {
-    const folderName = (name || `Папка ${foldersRef.current.length + 1}`).trim()
+      const folderName = (name || `Папка ${foldersRef.current.length + 1}`).trim()
 
     if (!isAuthenticated) {
       const newFolder = createFolder(folderName)
-      const newChat = createChat(`\u0427\u0430\u0442 ${chatsRef.current.length + 1}`, newFolder.id)
+      const newChat = createChat(`\u0427\u0430\u0442 ${chatsRef.current.length + 1}`, newFolder.id, user)
       setFolders(prev => [...prev, newFolder])
       setChats(prev => [...prev, newChat])
       setActiveChatId(newChat.id)
@@ -336,7 +341,7 @@ export function useChats({ user, accessToken, authEvent }) {
       const normalized = normalizeFolder(created)
       setFolders(prev => [...prev, normalized])
       const nextChatName = `\u0427\u0430\u0442 ${chatsRef.current.length + 1}`
-      const createdChat = await apiCreateChat(accessToken, toApiPayload(createChat(nextChatName, normalized.id)))
+      const createdChat = await apiCreateChat(accessToken, toApiPayload(createChat(nextChatName, normalized.id, user)))
       const normalizedChat = applyUiStateToChats([normalizeChat(createdChat)], readChatUiState(user?.id))[0]
       setChats(prev => [...prev, normalizedChat])
       setActiveChatId(normalizedChat.id)
@@ -367,9 +372,18 @@ export function useChats({ user, accessToken, authEvent }) {
     const folderId = String(id)
 
     setFolders(prev => prev.filter(folder => String(folder.id) !== folderId))
-    setChats(prev => prev.map(chat => (
-      String(chat.folderId) === folderId ? { ...chat, folderId: null } : chat
-    )))
+    setChats(prev => {
+      const updated = prev.filter(chat => String(chat.folderId) !== folderId)
+      if (updated.length === 0) {
+        const fresh = createChat('Чат 1', null, user)
+        setActiveChatId(fresh.id)
+        return [fresh]
+      }
+      if (prev.some(chat => String(chat.id) === String(activeChatId) && String(chat.folderId) === folderId)) {
+        setActiveChatId(updated[0].id)
+      }
+      return updated
+    })
 
     if (!isAuthenticated) return
 
@@ -385,7 +399,7 @@ export function useChats({ user, accessToken, authEvent }) {
 
     if (!isAuthenticated) {
       setChats(prev => {
-        const newChat = createChat(`Чат ${prev.length + 1}`, folderId)
+        const newChat = createChat(`Чат ${prev.length + 1}`, folderId, user)
         setActiveChatId(newChat.id)
         return [...prev, newChat]
       })
@@ -394,7 +408,7 @@ export function useChats({ user, accessToken, authEvent }) {
 
     try {
       const nextName = `Чат ${chatsRef.current.length + 1}`
-      const created = await apiCreateChat(accessToken, toApiPayload(createChat(nextName, folderId)))
+      const created = await apiCreateChat(accessToken, toApiPayload(createChat(nextName, folderId, user)))
       const normalized = applyUiStateToChats([normalizeChat(created)], readChatUiState(user?.id))[0]
       setChats(prev => [...prev, normalized])
       setActiveChatId(normalized.id)
@@ -410,7 +424,7 @@ export function useChats({ user, accessToken, authEvent }) {
       setChats(prev => {
         const updated = prev.filter(c => String(c.id) !== chatId)
         if (updated.length === 0) {
-          const fresh = createChat('Чат 1')
+          const fresh = createChat('Чат 1', null, user)
           setActiveChatId(fresh.id)
           return [fresh]
         }
@@ -515,4 +529,3 @@ export function useChats({ user, accessToken, authEvent }) {
     updateChat,
   }
 }
-

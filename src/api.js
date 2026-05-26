@@ -2,6 +2,10 @@ const BASE = 'http://127.0.0.1:8000/api/auth'
 const API_ORIGIN = 'http://127.0.0.1:8000'
 const CHATS_BASE = `${BASE}/chats`
 const FOLDERS_BASE = `${BASE}/folders`
+const SUBSCRIPTION_PLANS_BASE = `${BASE}/subscription/plans/`
+const SUBSCRIPTION_CHANGE_BASE = `${BASE}/subscription/change/`
+const SUBSCRIPTION_CANCEL_BASE = `${BASE}/subscription/cancel/`
+const SUBSCRIPTION_CHECKOUT_BASE = `${BASE}/subscription/checkout/`
 const LLM_CHAT_BASE = `${BASE}/llm/chat/`
 const LLM_CHAT_STOP_BASE = `${BASE}/llm/chat/stop/`
 
@@ -28,7 +32,11 @@ async function request(url, options = {}) {
     const data = isJson ? await res.json() : null
     if (!res.ok) {
       const detail = extractError(data, res.statusText)
-      throw new Error(detail || 'Ошибка запроса')
+      const error = new Error(detail || 'Ошибка запроса')
+      error.status = res.status
+      error.data = data
+      error.errorCode = data?.error_code || ''
+      throw error
     }
     return data
   } catch (e) {
@@ -77,6 +85,63 @@ export async function updateProfile(accessToken, data) {
     method: 'PATCH',
     headers,
     body: isFormData ? data : JSON.stringify(data),
+  })
+}
+
+export async function getSubscriptionPlans(accessToken) {
+  const headers = {}
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`
+
+  return request(SUBSCRIPTION_PLANS_BASE, {
+    headers,
+  })
+}
+
+export async function changeSubscriptionPlan(accessToken, plan) {
+  return request(SUBSCRIPTION_CHANGE_BASE, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ plan }),
+  })
+}
+
+export async function cancelSubscription(accessToken) {
+  return request(SUBSCRIPTION_CANCEL_BASE, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${accessToken}` },
+  })
+}
+
+export async function createSubscriptionCheckout(accessToken, payload) {
+  return request(SUBSCRIPTION_CHECKOUT_BASE, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  })
+}
+
+export async function getSubscriptionCheckout(accessToken, checkoutToken) {
+  return request(`${SUBSCRIPTION_CHECKOUT_BASE}${checkoutToken}/`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+    },
+  })
+}
+
+export async function paySubscriptionCheckout(accessToken, checkoutToken, payload) {
+  return request(`${SUBSCRIPTION_CHECKOUT_BASE}${checkoutToken}/pay/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
   })
 }
 

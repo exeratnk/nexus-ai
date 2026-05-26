@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { toAbsoluteMediaUrl } from '../api.js'
+import { CrownIcon, ShieldIcon } from './GlassIcons.jsx'
 
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024
 
@@ -18,6 +19,7 @@ export default function ProfileModal({
   saving,
   error,
   onClearError,
+  onOpenSubscription,
 }) {
   const [form, setForm] = useState(() => getInitialForm(user))
   const [avatarFile, setAvatarFile] = useState(null)
@@ -61,6 +63,11 @@ export default function ProfileModal({
     return parts.join(' ') || user?.username || 'Пользователь NexusAI'
   }, [form.first_name, form.last_name, user?.username])
   const hasAvatar = Boolean(user?.avatar || avatarFile) && !removeAvatar
+  const subscription = user?.subscription || {}
+  const isPro = Boolean(subscription?.is_pro)
+  const dailyLimit = subscription?.daily_message_limit ?? null
+  const dailyRemaining = subscription?.daily_messages_remaining ?? null
+  const dailyUsed = subscription?.daily_messages_used ?? 0
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -218,6 +225,18 @@ export default function ProfileModal({
               <span>Имя</span>
               <strong>{fullName}</strong>
             </div>
+            <div className="profile-summary-row">
+              <span>Тариф</span>
+              <strong>{isPro ? 'Pro' : 'Free'}</strong>
+            </div>
+            <div className="profile-summary-row">
+              <span>Доступ к чату</span>
+              <strong>
+                {isPro
+                  ? 'Безлимитные сообщения, Nexus 3.8 и глубокий режим'
+                  : `${dailyRemaining ?? 0} из ${dailyLimit ?? 0} сообщений осталось сегодня`}
+              </strong>
+            </div>
           </div>
         </aside>
 
@@ -277,6 +296,66 @@ export default function ProfileModal({
                 </div>
               </label>
             </div>
+          </div>
+
+          <div className="profile-form-section subscription-section">
+            <div className="profile-section-head">
+              <h3>Подписка</h3>
+              <p>Управляйте тарифом и доступом к расширенным возможностям чата.</p>
+            </div>
+
+            <div className={`subscription-hero ${isPro ? 'is-pro' : 'is-free'}`}>
+              <div className="subscription-hero-copy">
+                <span className="brand-kicker">Current plan</span>
+                <h4>{isPro ? 'NexusAI Pro' : 'NexusAI Free'}</h4>
+                <p>
+                  {isPro
+                    ? 'Безлимитные сообщения, старшая модель Nexus 3.8 и глубокий режим.'
+                    : `Базовый чат и до ${dailyLimit ?? 0} сообщений в день.`}
+                </p>
+              </div>
+              <div className="subscription-hero-status">
+                <span className={`plan-pill ${isPro ? 'plan-pill-pro' : 'plan-pill-free'}`}>
+                  {isPro ? <CrownIcon size={13} /> : <ShieldIcon size={13} />}
+                  {isPro ? 'Pro' : 'Free'}
+                </span>
+                <span className="subscription-usage-text">
+                  {isPro ? 'Статус активен' : `Сегодня использовано ${dailyUsed}${dailyLimit ? ` / ${dailyLimit}` : ''}`}
+                </span>
+              </div>
+            </div>
+
+            <div className="subscription-plan-grid">
+              <div className={`subscription-plan-card ${!isPro ? 'is-current' : ''}`}>
+                <div className="subscription-plan-head">
+                  <span className="plan-pill plan-pill-free">
+                    <ShieldIcon size={13} />
+                    Free
+                  </span>
+                  {!isPro && <span className="subscription-current-marker">Текущий</span>}
+                </div>
+                <p>Базовый доступ к NexusAI и дневной лимит сообщений.</p>
+              </div>
+
+              <div className={`subscription-plan-card ${isPro ? 'is-current is-pro' : 'is-pro'}`}>
+                <div className="subscription-plan-head">
+                  <span className="plan-pill plan-pill-pro">
+                    <CrownIcon size={13} />
+                    Pro
+                  </span>
+                  {isPro && <span className="subscription-current-marker">Текущий</span>}
+                </div>
+                <p>Безлимитный чат, глубокий режим и доступ к Nexus 3.8.</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="btn-ghost glass-shimmer subscription-primary-action"
+              onClick={onOpenSubscription}
+            >
+              Открыть управление тарифом
+            </button>
           </div>
 
           {(localError || error) && (

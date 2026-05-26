@@ -23,6 +23,7 @@ const ANNOTATION_KEY_PREFIX = 'chat_annotations_'
 const COMPOSER_MIN_HEIGHT = 44
 const PAGE_SCROLL_STEP = 0.85
 const BOTTOM_SNAP_THRESHOLD = 40
+const PRO_ONLY_MODELS = new Set(['nexus-3.8'])
 
 function formatBytes(bytes) {
   if (!bytes || Number.isNaN(bytes)) return ''
@@ -81,12 +82,24 @@ function writeAnnotations(chatId, annotations) {
   localStorage.setItem(getAnnotationStorageKey(chatId), JSON.stringify(normalized))
 }
 
-export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, isFocus, onExitFocus, accessToken }) {
+export default function ChatWindow({
+  chat,
+  folders,
+  onAddMessage,
+  onUpdateChat,
+  isFocus,
+  onExitFocus,
+  accessToken,
+  user,
+  onOpenSubscription,
+  onRefreshSubscription,
+}) {
   const [input, setInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [isTyping, setIsTyping] = useState(false)
   const [skillInput, setSkillInput] = useState('')
   const [isAnnotationPopoverOpen, setIsAnnotationPopoverOpen] = useState(false)
+  const [limitNotice, setLimitNotice] = useState(null)
   const messagesContainerRef = useRef(null)
   const textareaRef = useRef(null)
   const fileInputRef = useRef(null)
@@ -110,6 +123,9 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
 
     controller?.abort()
   }, [accessToken])
+  const isPro = Boolean(user?.subscription?.is_pro)
+  const dailyLimit = user?.subscription?.daily_message_limit ?? null
+  const dailyRemaining = user?.subscription?.daily_messages_remaining ?? null
 
 
   const anchors = chat.messages
@@ -202,6 +218,23 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
     cancelActiveRequest(true)
   }, [cancelActiveRequest])
 
+  useEffect(() => {
+    if (isPro) {
+      setLimitNotice(null)
+    }
+  }, [isPro])
+
+  useEffect(() => {
+    if (limitNotice?.type !== 'pro') return
+    if (isPro || (!chat.deepMode && !PRO_ONLY_MODELS.has(chat.model))) {
+      setLimitNotice(null)
+    }
+  }, [chat.deepMode, chat.model, isPro, limitNotice?.type])
+
+  useEffect(() => {
+    setLimitNotice(null)
+  }, [chat.id])
+
   function scrollToAnchor(msgId) {
     const el = document.getElementById(`msg-${msgId}`)
     const container = messagesContainerRef.current
@@ -275,6 +308,27 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
   async function handleSend() {
     const text = input.trim()
     if ((!text && !selectedFile) || isTyping) return
+    if (user && !isPro && dailyLimit != null && dailyRemaining === 0) {
+      setLimitNotice({
+        type: 'limit',
+        message: `Лимит Free тарифа на сегодня исчерпан: ${dailyLimit} сообщений в день. Перейдите на Pro, чтобы продолжить.`,
+      })
+      return
+    }
+    if (user && !isPro && PRO_ONLY_MODELS.has(chat.model)) {
+      setLimitNotice({
+        type: 'pro',
+        message: `Модель ${chat.model} доступна только на тарифе Pro.`,
+      })
+      return
+    }
+    if (user && !isPro && chat.deepMode) {
+      setLimitNotice({
+        type: 'pro',
+        message: 'Глубокий режим доступен только на тарифе Pro.',
+      })
+      return
+    }
 
     setInput('')
     if (textareaRef.current) {
@@ -302,6 +356,7 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
 
 
     setIsTyping(true)
+    setLimitNotice(null)
     const requestId = createRequestId()
     activeRequestIdRef.current = requestId
     abortControllerRef.current = new AbortController()
@@ -320,9 +375,20 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
         timestamp: Date.now(),
       }
       onAddMessage(chat.id, botMsg)
+      const refreshAfterSuccess = onRefreshSubscription?.()
+      refreshAfterSuccess?.catch(() => {})
     } catch (error) {
       if (error.name === 'AbortError') {
         return
+      }
+      if (error.errorCode === 'free_daily_limit_exceeded' || error.errorCode === 'pro_feature_required') {
+        setLimitNotice({
+          type: error.errorCode === 'free_daily_limit_exceeded' ? 'limit' : 'pro',
+          message: error.message,
+          subscription: error.data?.subscription || null,
+        })
+        const refreshAfterError = onRefreshSubscription?.()
+        refreshAfterError?.catch(() => {})
       }
       const botMsg = {
         id: (Date.now() + 1).toString(),
@@ -384,10 +450,24 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
   }
 
   function toggleDeepMode() {
+    if (!isPro && !chat.deepMode) {
+      setLimitNotice({
+        type: 'pro',
+        message: 'Глубокий режим доступен только на тарифе Pro.',
+      })
+      return
+    }
     onUpdateChat?.(chat.id, { deepMode: !chat.deepMode })
   }
 
   function handleModelChange(e) {
+    if (!isPro && PRO_ONLY_MODELS.has(e.target.value)) {
+      setLimitNotice({
+        type: 'pro',
+        message: `Модель ${e.target.value} доступна только на тарифе Pro.`,
+      })
+      return
+    }
     onUpdateChat?.(chat.id, { model: e.target.value })
   }
 
@@ -476,7 +556,9 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
                 onChange={handleModelChange}
               >
                 {MODEL_OPTIONS.map(model => (
-                  <option key={model.value} value={model.value}>{model.label}</option>
+                  <option key={model.value} value={model.value}>
+                    {model.label}{PRO_ONLY_MODELS.has(model.value) ? ' · Pro' : ''}
+                  </option>
                 ))}
               </select>
             </div>
@@ -489,9 +571,27 @@ export default function ChatWindow({ chat, folders, onAddMessage, onUpdateChat, 
               onChange={toggleDeepMode}
             />
             <span className="toggle-slider" aria-hidden />
-            <span className="toggle-label">Глубокий режим</span>
+            <span className="toggle-label">Глубокий режим {!isPro ? 'Pro' : ''}</span>
           </label>
         </div>
+
+        {limitNotice && (
+          <div className={`subscription-notice ${limitNotice.type === 'limit' ? 'is-limit' : 'is-pro'}`}>
+            <div className="subscription-notice-copy">
+              <strong>{limitNotice.type === 'limit' ? 'Лимит Free достигнут' : 'Нужен тариф Pro'}</strong>
+              <p>{limitNotice.message}</p>
+            </div>
+            {user && !isPro && (
+              <button
+                type="button"
+                className="auth-submit glass-shimmer subscription-notice-action"
+                onClick={onOpenSubscription}
+              >
+                Перейти на Pro
+              </button>
+            )}
+          </div>
+        )}
 
         {isFocus && (
           <div className="focus-toolbar chat-top-focus" role="toolbar" aria-label="Панель режима фокуса">

@@ -5,6 +5,8 @@ import {
   logout as apiLogout,
   getProfile,
   updateProfile as apiUpdateProfile,
+  changeSubscriptionPlan as apiChangeSubscriptionPlan,
+  cancelSubscription as apiCancelSubscription,
 } from '../api.js'
 
 const ACCESS_KEY = 'access'
@@ -116,6 +118,50 @@ export function useAuth() {
     }
   }, [access])
 
+  const refreshProfile = useCallback(async () => {
+    if (!access) return null
+
+    const profile = await getProfile(access)
+    setUser(profile)
+    return profile
+  }, [access])
+
+  const handleChangeSubscriptionPlan = useCallback(async (plan) => {
+    if (!access) {
+      const message = 'Сначала выполните вход'
+      setError(message)
+      throw new Error(message)
+    }
+
+    setError('')
+    try {
+      const response = await apiChangeSubscriptionPlan(access, plan)
+      setUser(response.user)
+      return response.user
+    } catch (e) {
+      setError(e.message || 'Не удалось изменить тариф')
+      throw e
+    }
+  }, [access])
+
+  const handleCancelSubscription = useCallback(async () => {
+    if (!access) {
+      const message = 'Сначала выполните вход'
+      setError(message)
+      throw new Error(message)
+    }
+
+    setError('')
+    try {
+      const response = await apiCancelSubscription(access)
+      setUser(response.user)
+      return response.user
+    } catch (e) {
+      setError(e.message || 'Не удалось изменить подписку')
+      throw e
+    }
+  }, [access])
+
   return {
     user,
     loading,
@@ -127,6 +173,9 @@ export function useAuth() {
     register: handleRegister,
     logout: handleLogout,
     updateProfile: handleUpdateProfile,
+    refreshProfile,
+    changeSubscriptionPlan: handleChangeSubscriptionPlan,
+    cancelSubscription: handleCancelSubscription,
     setError,
   }
 }

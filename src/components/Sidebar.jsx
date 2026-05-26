@@ -9,6 +9,7 @@ import {
   SkillIcon,
   TrashIcon,
 } from './GlassIcons.jsx'
+import ProfileMenu from './ProfileMenu.jsx'
 
 function includesQuery(value, query) {
   return typeof value === 'string' && value.toLowerCase().includes(query)
@@ -34,33 +35,6 @@ function getChatPreview(chat) {
   if (chat.skills?.length) return `Скиллы: ${chat.skills.slice(0, 2).join(', ')}`
   if (lastMessage?.attachments?.[0]?.name) return lastMessage.attachments[0].name
   return 'Новый проект готов к работе'
-}
-
-function SidebarProfileButton({ user, avatarUrl, onClick }) {
-  const label = user ? 'Открыть профиль' : 'Открыть авторизацию'
-  const title = user ? 'Открыть профиль' : 'Войти или зарегистрироваться'
-
-  return (
-    <button
-      type="button"
-      className="sidebar-profile-button glass-shimmer"
-      onClick={onClick}
-      aria-label={label}
-      title={title}
-    >
-      <div className="avatar-circle">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt="Аватар пользователя" />
-        ) : (
-          (user?.username || 'Г')[0].toUpperCase()
-        )}
-      </div>
-      <div className="sidebar-profile-copy">
-        <div className="sidebar-profile-name">{user?.username || 'Гость'}</div>
-        <div className="sidebar-profile-email">{user?.email || 'Local workspace'}</div>
-      </div>
-    </button>
-  )
 }
 
 function ChatItem({ chat, activeChatId, editingId, editValue, setEditValue, setEditingId, onSelect, onDelete, onRename }) {
@@ -259,6 +233,9 @@ export default function Sidebar({
   user,
   avatarUrl,
   onProfileClick,
+  onSubscriptionClick,
+  onLoginClick,
+  onLogoutClick,
 }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -375,7 +352,14 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-user-area">
-        <SidebarProfileButton user={user} avatarUrl={avatarUrl} onClick={onProfileClick} />
+        <ProfileMenu
+          user={user}
+          avatarUrl={avatarUrl}
+          onOpenProfile={onProfileClick}
+          onOpenSubscription={onSubscriptionClick}
+          onLogin={onLoginClick}
+          onLogout={onLogoutClick}
+        />
       </div>
     </aside>
   )

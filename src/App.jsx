@@ -3,6 +3,8 @@ import Sidebar from './components/Sidebar.jsx'
 import ChatWindow from './components/ChatWindow.jsx'
 import AuthScreen from './components/AuthScreen.jsx'
 import ProfileModal from './components/ProfileModal.jsx'
+import ProfileMenu from './components/ProfileMenu.jsx'
+import SubscriptionPage from './components/SubscriptionPage.jsx'
 import { useChats } from './hooks/useChats.js'
 import { useAuth } from './hooks/useAuth.js'
 import { useTheme } from './hooks/useTheme.js'
@@ -21,12 +23,24 @@ import {
   SunIcon,
 } from './components/GlassIcons.jsx'
 
+function getAppRoute() {
+  if (typeof window === 'undefined') return 'chat'
+  return window.location.pathname === '/subscription' || window.location.pathname === '/billing'
+    ? 'subscription'
+    : 'chat'
+}
+
+function getRoutePath(route) {
+  return route === 'subscription' ? '/subscription' : '/'
+}
+
 export default function App() {
   const [showAuth, setShowAuth] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
   const [profileSaving, setProfileSaving] = useState(false)
   const [isFocus, setIsFocus] = useState(false)
   const [isSidebarHidden, setIsSidebarHidden] = useState(false)
+  const [route, setRoute] = useState(() => getAppRoute())
   const { toggleTheme, isDark } = useTheme()
   const {
     user,
@@ -38,6 +52,7 @@ export default function App() {
     register,
     logout,
     updateProfile,
+    refreshProfile,
     setError: setAuthError,
   } = useAuth()
   const clearAuthError = useCallback(() => setAuthError(''), [setAuthError])
@@ -57,6 +72,15 @@ export default function App() {
 
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  useEffect(() => {
+    function handlePopState() {
+      setRoute(getAppRoute())
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
   }, [])
 
   const {
@@ -88,8 +112,23 @@ export default function App() {
 
   const avatarUrl = toAbsoluteMediaUrl(user?.avatar)
   const focusButtonLabel = isFocus ? 'Выйти из фокуса' : 'Включить фокус'
-  const profileButtonLabel = user ? 'Открыть профиль' : 'Открыть авторизацию'
-  const profileButtonTitle = user ? 'Открыть профиль' : 'Войти или зарегистрироваться'
+
+  const navigateTo = useCallback((nextRoute, options = {}) => {
+    const nextPath = getRoutePath(nextRoute)
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+
+    if (typeof window !== 'undefined' && currentPath !== nextPath) {
+      const method = options.replace ? 'replaceState' : 'pushState'
+      window.history[method]({}, '', nextPath)
+    }
+
+    setRoute(nextRoute)
+  }, [])
+
+  const openAuthEntry = useCallback(() => {
+    clearAuthError()
+    setShowAuth(true)
+  }, [clearAuthError])
 
   const openProfileEntry = useCallback(() => {
     clearAuthError()
@@ -99,6 +138,16 @@ export default function App() {
     }
     setShowAuth(true)
   }, [clearAuthError, user])
+
+  const openSubscriptionEntry = useCallback(() => {
+    clearAuthError()
+    navigateTo('subscription')
+  }, [clearAuthError, navigateTo])
+
+  const handleSelectChat = useCallback((chatId) => {
+    setActiveChatId(chatId)
+    navigateTo('chat')
+  }, [navigateTo, setActiveChatId])
 
   return (
     <div id="shell" className={`layout shell ${isFocus ? 'focus' : ''}`}>
@@ -210,21 +259,15 @@ export default function App() {
             </div>
 
             <div className="sidebar-rail-bottom">
-              <button
-                type="button"
-                className="sidebar-rail-btn sidebar-rail-profile glass-shimmer"
-                onClick={openProfileEntry}
-                aria-label={profileButtonLabel}
-                title={profileButtonTitle}
-              >
-                <div className="avatar-circle">
-                  {avatarUrl ? (
-                    <img src={avatarUrl} alt="Аватар пользователя" />
-                  ) : (
-                    (user?.username || 'Г')[0].toUpperCase()
-                  )}
-                </div>
-              </button>
+              <ProfileMenu
+                compact
+                user={user}
+                avatarUrl={avatarUrl}
+                onOpenProfile={openProfileEntry}
+                onOpenSubscription={openSubscriptionEntry}
+                onLogin={openAuthEntry}
+                onLogout={logout}
+              />
             </div>
           </aside>
         )}
@@ -235,7 +278,7 @@ export default function App() {
             chats={chats}
             activeChatId={activeChatId}
             onHide={() => setIsSidebarHidden(true)}
-            onSelect={setActiveChatId}
+            onSelect={handleSelectChat}
             onAdd={addChat}
             onAddFolder={addFolder}
             onRenameFolder={renameFolder}
@@ -245,10 +288,20 @@ export default function App() {
             user={user}
             avatarUrl={avatarUrl}
             onProfileClick={openProfileEntry}
+            onSubscriptionClick={openSubscriptionEntry}
+            onLoginClick={openAuthEntry}
+            onLogoutClick={logout}
           />
         )}
         <div className="chat-col">
-          {activeChat ? (
+          {route === 'subscription' ? (
+            <SubscriptionPage
+              user={user}
+              accessToken={accessToken}
+              onRequireAuth={openAuthEntry}
+              onRefreshSubscription={refreshProfile}
+            />
+          ) : activeChat ? (
             <ChatWindow
               key={activeChat.id}
               chat={activeChat}
@@ -258,6 +311,9 @@ export default function App() {
               isFocus={isFocus}
               onExitFocus={() => setIsFocus(false)}
               accessToken={accessToken}
+              user={user}
+              onOpenSubscription={openSubscriptionEntry}
+              onRefreshSubscription={refreshProfile}
             />
           ) : (
             <section className="workspace-empty">
@@ -301,6 +357,10 @@ export default function App() {
               saving={profileSaving}
               error={authError}
               onClearError={clearAuthError}
+              onOpenSubscription={() => {
+                setShowProfile(false)
+                openSubscriptionEntry()
+              }}
             />
           </div>
         </div>
