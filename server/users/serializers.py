@@ -6,6 +6,7 @@ from .subscriptions import (
     ensure_subscription,
     get_allowed_models,
     get_daily_limit,
+    get_effective_plan,
     get_remaining_messages,
 )
 
@@ -53,6 +54,7 @@ class ProfileSerializer(serializers.ModelSerializer):
 
         return {
             'plan': subscription.plan,
+            'effective_plan': get_effective_plan(subscription),
             'subscription_status': subscription.subscription_status,
             'current_period_end': subscription.current_period_end,
             'is_pro': subscription.is_pro,

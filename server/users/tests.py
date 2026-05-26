@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 from unittest.mock import patch
 
 from .llm import _collect_stream_response, _looks_incomplete, complete_chat, normalize_messages
-from .models import Chat
+from .models import Chat, Subscription
 
 
 class AuthChatFlowTests(APITestCase):
@@ -188,15 +188,30 @@ class AuthChatFlowTests(APITestCase):
         self.assertEqual(pay_response.data['user']['subscription']['subscription_status'], 'active')
         self.assertTrue(pay_response.data['user']['subscription']['is_pro'])
 
-    def test_user_can_downgrade_to_free_after_pro(self):
+    def test_user_cannot_downgrade_to_free_after_pro(self):
+        self.authenticate()
+        self.activate_pro_via_checkout()
+
+        response = self.client.post(
+            reverse('subscription-change'),
+            {'plan': 'free'},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(response.data['error_code'], 'downgrade_disabled')
+        self.assertEqual(response.data['subscription']['plan'], 'pro')
+        self.assertTrue(response.data['subscription']['is_pro'])
+
+    def test_user_cannot_cancel_active_pro_subscription(self):
         self.authenticate()
         self.activate_pro_via_checkout()
 
         cancel_response = self.client.post(reverse('subscription-cancel'), format='json')
-        self.assertEqual(cancel_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(cancel_response.data['user']['subscription']['plan'], 'free')
-        self.assertEqual(cancel_response.data['user']['subscription']['subscription_status'], 'canceled')
-        self.assertFalse(cancel_response.data['user']['subscription']['is_pro'])
+        self.assertEqual(cancel_response.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(cancel_response.data['error_code'], 'downgrade_disabled')
+        self.assertEqual(cancel_response.data['subscription']['plan'], 'pro')
+        self.assertTrue(cancel_response.data['subscription']['is_pro'])
 
     def test_webhook_can_activate_pro_subscription(self):
         self.authenticate()
@@ -276,6 +291,57 @@ class AuthChatFlowTests(APITestCase):
         self.assertEqual(second_response.data['error_code'], 'free_daily_limit_exceeded')
         self.assertEqual(second_response.data['subscription']['daily_message_limit'], 1)
         self.assertEqual(second_response.data['subscription']['daily_messages_used'], 1)
+
+    @override_settings(FREE_DAILY_MESSAGE_LIMIT=1)
+    @patch('users.views.complete_chat')
+    def test_manual_admin_pro_grant_reactivates_chat_access(self, complete_chat_mock):
+        self.authenticate()
+        complete_chat_mock.side_effect = ['Первый ответ', 'Доступ после ручного Pro']
+
+        first_response = self.client.post(
+            reverse('llm-chat'),
+            {
+                'messages': [{'role': 'user', 'text': 'Первый запрос'}],
+                'model': 'nexus-mini',
+                'deep_mode': False,
+                'request_id': 'req-admin-pro-1',
+            },
+            format='json',
+        )
+        self.assertEqual(first_response.status_code, status.HTTP_200_OK)
+
+        subscription = Subscription.objects.get(user__username='tester')
+        subscription.plan = Subscription.Plan.PRO
+        subscription.subscription_status = Subscription.Status.CANCELED
+        subscription.current_period_end = None
+        subscription.provider_subscription_id = ''
+        subscription.save(
+            update_fields=(
+                'plan',
+                'subscription_status',
+                'current_period_end',
+                'provider_subscription_id',
+                'updated_at',
+            )
+        )
+
+        second_response = self.client.post(
+            reverse('llm-chat'),
+            {
+                'messages': [{'role': 'user', 'text': 'Второй запрос'}],
+                'model': 'nexus-mini',
+                'deep_mode': False,
+                'request_id': 'req-admin-pro-2',
+            },
+            format='json',
+        )
+
+        self.assertEqual(second_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(second_response.data['message']['text'], 'Доступ после ручного Pro')
+
+        subscription.refresh_from_db()
+        self.assertEqual(subscription.subscription_status, Subscription.Status.CANCELED)
+        self.assertTrue(subscription.is_pro)
 
     @patch('users.views.complete_chat')
     def test_pro_user_can_use_pro_model_and_deep_mode(self, complete_chat_mock):

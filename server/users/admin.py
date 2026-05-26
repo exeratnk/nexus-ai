@@ -7,8 +7,21 @@ from .models import (
     ProjectFolder,
     Subscription,
     DailyMessageUsage,
-    SubscriptionCheckoutSession,
 )
+from .subscriptions import normalize_subscription_state
+
+
+class SubscriptionInline(admin.StackedInline):
+    model = Subscription
+    extra = 1
+    max_num = 1
+    can_delete = False
+    fields = (
+        'plan',
+        'current_period_end',
+        'provider_customer_id',
+        'provider_subscription_id',
+    )
 
 
 @admin.register(User)
@@ -16,6 +29,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
         ('Profile', {'fields': ('bio', 'avatar')}),
     )
+    inlines = (SubscriptionInline,)
     list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'is_active')
     search_fields = ('username', 'email', 'first_name', 'last_name')
 
@@ -35,9 +49,20 @@ class ProjectFolderAdmin(admin.ModelAdmin):
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'plan', 'subscription_status', 'current_period_end', 'updated_at')
-    list_filter = ('plan', 'subscription_status')
+    fields = (
+        'user',
+        'plan',
+        'current_period_end',
+        'provider_customer_id',
+        'provider_subscription_id',
+    )
+    list_display = ('user', 'plan', 'current_period_end', 'updated_at')
+    list_filter = ('plan',)
     search_fields = ('user__username', 'user__email', 'provider_customer_id', 'provider_subscription_id')
+
+    def save_model(self, request, obj, form, change):
+        normalize_subscription_state(obj, persist=False)
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(DailyMessageUsage)
@@ -45,15 +70,3 @@ class DailyMessageUsageAdmin(admin.ModelAdmin):
     list_display = ('user', 'date', 'messages_count')
     list_filter = ('date',)
     search_fields = ('user__username', 'user__email')
-
-
-@admin.register(SubscriptionCheckoutSession)
-class SubscriptionCheckoutSessionAdmin(admin.ModelAdmin):
-    list_display = ('user', 'target_plan', 'status', 'provider', 'amount', 'created_at', 'expires_at')
-    list_filter = ('target_plan', 'status', 'provider')
-    search_fields = (
-        'user__username',
-        'user__email',
-        'provider_session_id',
-        'provider_payment_id',
-    )

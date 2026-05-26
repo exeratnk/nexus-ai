@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import Sidebar from './components/Sidebar.jsx'
 import ChatWindow from './components/ChatWindow.jsx'
 import AuthScreen from './components/AuthScreen.jsx'
@@ -34,6 +34,67 @@ function getRoutePath(route) {
   return route === 'subscription' ? '/subscription' : '/'
 }
 
+function getSidebarLimitNotice(user) {
+  const subscription = user?.subscription
+  if (!user || !subscription || subscription.is_pro) return null
+
+  const dailyLimit = subscription.daily_message_limit ?? null
+  const dailyRemaining = subscription.daily_messages_remaining ?? null
+  const dailyUsed = subscription.daily_messages_used ?? dailyLimit ?? 0
+
+  if (dailyLimit == null || dailyRemaining !== 0) return null
+
+  return {
+    key: `${user.id}:${dailyLimit}:${dailyUsed}:${dailyRemaining}`,
+    title: 'Лимит Free достигнут',
+    caption: `Сегодня использовано ${dailyUsed} из ${dailyLimit} сообщений`,
+    message: 'Откройте Pro, чтобы продолжить диалог без ожидания следующего дня.',
+    ctaLabel: 'Перейти на Pro',
+  }
+}
+
+function getSidebarProNotice(reason) {
+  if (!reason) return null
+
+  if (reason.type === 'deep_mode') {
+    return {
+      key: 'pro:deep_mode',
+      title: 'Глубокий режим доступен в Pro',
+      caption: 'Расширенный режим ответа',
+      message: 'Подключите Pro, чтобы включить глубокий режим и получать более детальные ответы.',
+      ctaLabel: 'Открыть Pro',
+    }
+  }
+
+  if (reason.type === 'model' && reason.model) {
+    return {
+      key: `pro:model:${reason.model}`,
+      title: 'Эта модель доступна в Pro',
+      caption: `Выбрана модель ${reason.model}`,
+      message: 'Перейдите на Pro, чтобы использовать продвинутые модели без ограничений Free.',
+      ctaLabel: 'Открыть Pro',
+    }
+  }
+
+  if (reason.type === 'send') {
+    return {
+      key: reason.model ? `pro:send:${reason.model}` : 'pro:send',
+      title: 'Для отправки нужен Pro',
+      caption: reason.model ? `Текущая модель: ${reason.model}` : 'Текущая конфигурация чата',
+      message: 'Оформите Pro, чтобы отправлять сообщения с этой моделью и режимом без блокировки.',
+      ctaLabel: 'Открыть Pro',
+    }
+  }
+
+  return {
+    key: 'pro:default',
+    title: 'Нужен тариф Pro',
+    caption: 'Расширенные возможности чата',
+    message: 'Откройте Pro, чтобы снять ограничения и продолжить работу.',
+    ctaLabel: 'Открыть Pro',
+  }
+}
+
 export default function App() {
   const [showAuth, setShowAuth] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -41,6 +102,8 @@ export default function App() {
   const [isFocus, setIsFocus] = useState(false)
   const [isSidebarHidden, setIsSidebarHidden] = useState(false)
   const [route, setRoute] = useState(() => getAppRoute())
+  const [sidebarActionNotice, setSidebarActionNotice] = useState(null)
+  const [dismissedSidebarNoticeKey, setDismissedSidebarNoticeKey] = useState('')
   const { toggleTheme, isDark } = useTheme()
   const {
     user,
@@ -112,6 +175,23 @@ export default function App() {
 
   const avatarUrl = toAbsoluteMediaUrl(user?.avatar)
   const focusButtonLabel = isFocus ? 'Выйти из фокуса' : 'Включить фокус'
+  const sidebarLimitNotice = useMemo(() => getSidebarLimitNotice(user), [user])
+  const sidebarNotice = sidebarLimitNotice || sidebarActionNotice
+  const visibleSidebarNotice = sidebarNotice?.key === dismissedSidebarNoticeKey
+    ? null
+    : sidebarNotice
+
+  useEffect(() => {
+    if (user?.subscription?.is_pro) {
+      setSidebarActionNotice(null)
+    }
+  }, [user?.subscription?.is_pro])
+
+  useEffect(() => {
+    if (!sidebarNotice) {
+      setDismissedSidebarNoticeKey('')
+    }
+  }, [sidebarNotice])
 
   const navigateTo = useCallback((nextRoute, options = {}) => {
     const nextPath = getRoutePath(nextRoute)
@@ -143,6 +223,16 @@ export default function App() {
     clearAuthError()
     navigateTo('subscription')
   }, [clearAuthError, navigateTo])
+
+  const showSidebarSubscriptionNotice = useCallback((reason) => {
+    const nextNotice = getSidebarProNotice(reason)
+    if (!nextNotice) return
+
+    setSidebarActionNotice(nextNotice)
+    setDismissedSidebarNoticeKey('')
+    setIsFocus(false)
+    setIsSidebarHidden(false)
+  }, [])
 
   const handleSelectChat = useCallback((chatId) => {
     setActiveChatId(chatId)
@@ -291,6 +381,8 @@ export default function App() {
             onSubscriptionClick={openSubscriptionEntry}
             onLoginClick={openAuthEntry}
             onLogoutClick={logout}
+            subscriptionNotice={visibleSidebarNotice}
+            onDismissSubscriptionNotice={() => setDismissedSidebarNoticeKey(sidebarNotice?.key || '')}
           />
         )}
         <div className="chat-col">
@@ -312,8 +404,8 @@ export default function App() {
               onExitFocus={() => setIsFocus(false)}
               accessToken={accessToken}
               user={user}
-              onOpenSubscription={openSubscriptionEntry}
               onRefreshSubscription={refreshProfile}
+              onShowSubscriptionNotice={showSidebarSubscriptionNotice}
             />
           ) : (
             <section className="workspace-empty">

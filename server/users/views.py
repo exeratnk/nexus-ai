@@ -22,6 +22,7 @@ from .subscriptions import (
     create_checkout_session,
     ensure_subscription,
     get_daily_limit,
+    get_effective_plan,
     get_subscription_catalog,
     get_today_usage_count,
     increment_daily_usage,
@@ -90,7 +91,7 @@ class SubscriptionPlansView(APIView):
     def get(self, request):
         current_plan = None
         if request.user.is_authenticated:
-            current_plan = ensure_subscription(request.user).plan
+            current_plan = get_effective_plan(ensure_subscription(request.user))
 
         return Response({
             'plans': get_subscription_catalog(),
@@ -114,6 +115,17 @@ class SubscriptionChangeView(APIView):
                 'plans': get_subscription_catalog(),
             }, status=status.HTTP_409_CONFLICT)
 
+        subscription = ensure_subscription(request.user)
+        if subscription.is_pro:
+            return Response(
+                _build_subscription_error_payload(
+                    request.user,
+                    'Нельзя перейти на Free при активном тарифе Pro.',
+                    'downgrade_disabled',
+                ),
+                status=status.HTTP_409_CONFLICT,
+            )
+
         cancel_pro_subscription(request.user)
         return Response({
             'detail': 'Тариф изменён на Free.',
@@ -126,6 +138,17 @@ class SubscriptionCancelView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
 
     def post(self, request):
+        subscription = ensure_subscription(request.user)
+        if subscription.is_pro:
+            return Response(
+                _build_subscription_error_payload(
+                    request.user,
+                    'Отмена активного тарифа Pro недоступна.',
+                    'downgrade_disabled',
+                ),
+                status=status.HTTP_409_CONFLICT,
+            )
+
         cancel_pro_subscription(request.user)
         return Response({
             'detail': 'Подписка переведена на Free.',

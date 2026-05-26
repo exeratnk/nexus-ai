@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import {
+  BoltIcon,
   EditIcon,
   FolderIcon,
   MessageIcon,
@@ -236,6 +237,8 @@ export default function Sidebar({
   onSubscriptionClick,
   onLoginClick,
   onLogoutClick,
+  subscriptionNotice,
+  onDismissSubscriptionNotice,
 }) {
   const [editingId, setEditingId] = useState(null)
   const [editValue, setEditValue] = useState('')
@@ -352,6 +355,37 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-user-area">
+        {subscriptionNotice && (
+          <div className="sidebar-limit-card" role="status" aria-live="polite">
+            <div className="sidebar-limit-card-top">
+              <span className="sidebar-limit-pill">
+                <BoltIcon size={13} />
+                {subscriptionNotice.key?.startsWith('pro:') ? 'Upgrade to Pro' : 'Free limit'}
+              </span>
+              <button
+                type="button"
+                className="sidebar-limit-dismiss"
+                onClick={onDismissSubscriptionNotice}
+                aria-label="Скрыть уведомление о подписке"
+                title="Скрыть"
+              >
+                ×
+              </button>
+            </div>
+            <div className="sidebar-limit-copy">
+              <strong>{subscriptionNotice.title}</strong>
+              <span>{subscriptionNotice.caption}</span>
+              <p>{subscriptionNotice.message}</p>
+            </div>
+            <button
+              type="button"
+              className="auth-submit glass-shimmer sidebar-limit-action"
+              onClick={onSubscriptionClick}
+            >
+              {subscriptionNotice.ctaLabel}
+            </button>
+          </div>
+        )}
         <ProfileMenu
           user={user}
           avatarUrl={avatarUrl}

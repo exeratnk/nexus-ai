@@ -21,7 +21,8 @@ export default function SubscriptionPage({
   const [actionPlan, setActionPlan] = useState('')
   const [checkout, setCheckout] = useState(null)
   const [paymentSubmitting, setPaymentSubmitting] = useState(false)
-  const currentPlan = user?.subscription?.plan || 'free'
+  const currentPlan = user?.subscription?.effective_plan || (user?.subscription?.is_pro ? 'pro' : 'free')
+  const hasActivePro = Boolean(user?.subscription?.is_pro)
 
   useEffect(() => {
     let cancelled = false
@@ -55,6 +56,7 @@ export default function SubscriptionPage({
     setSuccessMessage('')
 
     if (planId === 'free') {
+      if (hasActivePro) return
       if (currentPlan === 'free') return
       setActionPlan(planId)
       try {
@@ -130,6 +132,7 @@ export default function SubscriptionPage({
           {plans.map(plan => {
             const isCurrent = currentPlan === plan.id
             const isPro = plan.id === 'pro'
+            const canSelectFree = plan.id !== 'free' || !hasActivePro
             const buttonLabel = isCurrent
               ? 'Выбрано'
               : plan.id === 'free'
@@ -159,21 +162,27 @@ export default function SubscriptionPage({
                   ))}
                 </ul>
 
-                <button
-                  type="button"
-                  className={`glass-shimmer ${isPro ? 'auth-submit' : 'btn-ghost'} subscription-tier-action`}
-                  onClick={() => handleSelectPlan(plan.id)}
-                  disabled={isCurrent || actionPlan === plan.id || (isPro && currentPlan === 'pro')}
-                >
-                  {actionPlan === plan.id ? (
-                    'Обрабатываем…'
-                  ) : (
-                    <>
-                      {isPro && <BoltIcon size={15} />}
-                      <span>{buttonLabel}</span>
-                    </>
-                  )}
-                </button>
+                {canSelectFree ? (
+                  <button
+                    type="button"
+                    className={`glass-shimmer ${isPro ? 'auth-submit' : 'btn-ghost'} subscription-tier-action`}
+                    onClick={() => handleSelectPlan(plan.id)}
+                    disabled={isCurrent || actionPlan === plan.id || (isPro && currentPlan === 'pro')}
+                  >
+                    {actionPlan === plan.id ? (
+                      'Обрабатываем…'
+                    ) : (
+                      <>
+                        {isPro && <BoltIcon size={15} />}
+                        <span>{buttonLabel}</span>
+                      </>
+                    )}
+                  </button>
+                ) : (
+                  <div className="subscription-tier-action subscription-tier-action-note">
+                    Free недоступен при активном Pro
+                  </div>
+                )}
               </article>
             )
           })}

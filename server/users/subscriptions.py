@@ -62,6 +62,15 @@ def get_subscription_catalog():
     return [PLAN_CATALOG[Subscription.Plan.FREE], PLAN_CATALOG[Subscription.Plan.PRO]]
 
 
+def normalize_subscription_state(subscription, *, persist=True):
+    """Оставлен для обратной совместимости с существующими вызовами."""
+    return subscription
+
+
+def get_effective_plan(subscription):
+    return Subscription.Plan.PRO if subscription.is_pro else Subscription.Plan.FREE
+
+
 def get_allowed_models(subscription):
     if subscription.is_pro:
         return sorted(FREE_MODEL_NAMES | PRO_MODEL_NAMES)
@@ -76,7 +85,7 @@ def ensure_subscription(user):
             'subscription_status': Subscription.Status.ACTIVE,
         },
     )
-    return subscription
+    return normalize_subscription_state(subscription)
 
 
 def get_daily_limit(subscription):

@@ -1,0 +1,30 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="nexus-main" x1="18" y1="12" x2="49" y2="50" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6D28D9" />
+      <stop offset="55%" stop-color="#9333EA" />
+      <stop offset="100%" stop-color="#C084FC" />
+    </linearGradient>
+    <linearGradient id="nexus-accent" x1="22" y1="18" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F5D0FE" />
+      <stop offset="100%" stop-color="#C084FC" />
+    </linearGradient>
+  </defs>
+  <circle cx="32" cy="32" r="25" stroke="url(#nexus-main)" stroke-width="2.75" opacity="0.55" />
+  <circle cx="32" cy="32" r="19.5" stroke="url(#nexus-accent)" stroke-width="2.2" opacity="0.35" />
+  <path
+    d="M32 10L48.5 20V44L32 54L15.5 44V20L32 10Z"
+    stroke="url(#nexus-main)"
+    stroke-width="3.7"
+    stroke-linejoin="round"
+  />
+  <path d="M21 21.5L43 38.5" stroke="url(#nexus-accent)" stroke-width="3.7" stroke-linecap="round" />
+  <path d="M21 38.5L43 21.5" stroke="url(#nexus-accent)" stroke-width="3.7" stroke-linecap="round" />
+  <circle cx="32" cy="32" r="4.25" fill="#F8FAFC" />
+  <circle cx="32" cy="10" r="2.6" fill="#D8B4FE" />
+  <circle cx="48.5" cy="20" r="2.6" fill="#C084FC" />
+  <circle cx="48.5" cy="44" r="2.6" fill="#A855F7" />
+  <circle cx="32" cy="54" r="2.6" fill="#C084FC" />
+  <circle cx="15.5" cy="44" r="2.6" fill="#A855F7" />
+  <circle cx="15.5" cy="20" r="2.6" fill="#C084FC" />
+</svg>

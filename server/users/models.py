@@ -46,7 +46,7 @@ class Subscription(models.Model):
 
     @property
     def is_pro(self):
-        return self.plan == self.Plan.PRO and self.subscription_status == self.Status.ACTIVE
+        return self.plan == self.Plan.PRO
 
     def __str__(self):
         return f'{self.user.username}: {self.plan} ({self.subscription_status})'
