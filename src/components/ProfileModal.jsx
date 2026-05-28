@@ -9,6 +9,9 @@ function getInitialForm(user) {
     email: user?.email || '',
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
+    current_password: '',
+    new_password: '',
+    new_password2: '',
   }
 }
 
@@ -68,6 +71,9 @@ export default function ProfileModal({
   const dailyLimit = subscription?.daily_message_limit ?? null
   const dailyRemaining = subscription?.daily_messages_remaining ?? null
   const dailyUsed = subscription?.daily_messages_used ?? 0
+  const planLabel = isPro ? 'Pro' : 'Free'
+  const planName = isPro ? 'NexusAI Pro' : 'NexusAI Free'
+  const avatarStatusLabel = hasAvatar ? 'Аватар загружен' : 'Аватар не добавлен'
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -100,10 +106,39 @@ export default function ProfileModal({
     e.preventDefault()
     setLocalError('')
 
+    const hasPasswordChange = Boolean(
+      form.current_password.trim() || form.new_password.trim() || form.new_password2.trim()
+    )
+
+    if (hasPasswordChange) {
+      if (!form.current_password) {
+        setLocalError('Введите текущий пароль')
+        return
+      }
+      if (!form.new_password) {
+        setLocalError('Введите новый пароль')
+        return
+      }
+      if (!form.new_password2) {
+        setLocalError('Подтвердите новый пароль')
+        return
+      }
+      if (form.new_password !== form.new_password2) {
+        setLocalError('Новые пароли не совпадают')
+        return
+      }
+    }
+
     const payload = {
       email: form.email.trim(),
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
+    }
+
+    if (hasPasswordChange) {
+      payload.current_password = form.current_password
+      payload.new_password = form.new_password
+      payload.new_password2 = form.new_password2
     }
 
     try {
@@ -140,8 +175,8 @@ export default function ProfileModal({
   return (
     <div className="profile-card">
       <div className="profile-header">
-        <div>
-          <span className="brand-kicker">Profile</span>
+        <div className="profile-header-copy">
+          <span className="brand-kicker">Аккаунт</span>
           <h2>Личный кабинет</h2>
         </div>
         <button className="auth-close glass-shimmer" type="button" onClick={onClose}>×</button>
@@ -149,93 +184,146 @@ export default function ProfileModal({
 
       <div className="profile-shell">
         <aside className="profile-overview">
-          <div className="profile-avatar-row">
-            <div className="profile-avatar">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt="Аватар пользователя" />
-              ) : (
-                <span>{initials}</span>
-              )}
+          <div className="profile-overview-card">
+            <div className="profile-overview-head">
+              <span className={`plan-pill ${isPro ? 'plan-pill-pro' : 'plan-pill-free'}`}>
+                {isPro ? <CrownIcon size={13} /> : <ShieldIcon size={13} />}
+                {planLabel}
+              </span>
             </div>
 
-            <div className="profile-overview-copy">
-              <div className="profile-name-line">
-                <h3>{fullName}</h3>
-                <span className={`profile-status ${hasAvatar ? 'with-avatar' : ''}`}>
-                  {hasAvatar ? 'Аватар активен' : 'Аватар не задан'}
-                </span>
+            <div className="profile-identity-row">
+              <div className="profile-avatar">
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt="Аватар пользователя" />
+                ) : (
+                  <span>{initials}</span>
+                )}
               </div>
-              <p>@{user?.username || 'guest'}</p>
 
-              <div className="profile-avatar-actions">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  hidden
-                />
+              <div className="profile-overview-copy">
+                <div className="profile-name-line">
+                  <h3>{fullName}</h3>
+                  <span className={`profile-status ${hasAvatar ? 'with-avatar' : ''}`}>
+                    {avatarStatusLabel}
+                  </span>
+                </div>
+                <p>{form.email || 'Email пока не указан'}</p>
+                <strong>@{user?.username || 'guest'}</strong>
+              </div>
+            </div>
+
+            <div className="profile-avatar-actions">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                hidden
+              />
+              <button
+                type="button"
+                className="btn-ghost small glass-shimmer"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Загрузить
+              </button>
+
+              {avatarFile && (
                 <button
                   type="button"
                   className="btn-ghost small glass-shimmer"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setAvatarFile(null)}
                 >
-                  Загрузить аватар
+                  Сбросить
                 </button>
+              )}
 
-                {avatarFile && (
-                  <button
-                    type="button"
-                    className="btn-ghost small glass-shimmer"
-                    onClick={() => setAvatarFile(null)}
-                  >
-                    Убрать файл
-                  </button>
-                )}
+              {!avatarFile && user?.avatar && !removeAvatar && (
+                <button
+                  type="button"
+                  className="btn-ghost small glass-shimmer"
+                  onClick={handleRemoveAvatar}
+                >
+                  Удалить
+                </button>
+              )}
 
-                {!avatarFile && user?.avatar && !removeAvatar && (
-                  <button
-                    type="button"
-                    className="btn-ghost small glass-shimmer"
-                    onClick={handleRemoveAvatar}
-                  >
-                    Удалить аватар
-                  </button>
-                )}
-
-                {!avatarFile && removeAvatar && (
-                  <button
-                    type="button"
-                    className="btn-ghost small glass-shimmer"
-                    onClick={handleRestoreAvatar}
-                  >
-                    Вернуть аватар
-                  </button>
-                )}
-              </div>
+              {!avatarFile && removeAvatar && (
+                <button
+                  type="button"
+                  className="btn-ghost small glass-shimmer"
+                  onClick={handleRestoreAvatar}
+                >
+                  Вернуть
+                </button>
+              )}
             </div>
           </div>
 
           <div className="profile-summary-card">
+            <div className="profile-section-head">
+              <h3>Основная информация</h3>
+            </div>
             <div className="profile-summary-row">
-              <span>Email</span>
-              <strong>{form.email || 'Не указан'}</strong>
+              <span>Логин</span>
+              <strong>@{user?.username || 'guest'}</strong>
             </div>
             <div className="profile-summary-row">
               <span>Имя</span>
               <strong>{fullName}</strong>
             </div>
             <div className="profile-summary-row">
-              <span>Тариф</span>
-              <strong>{isPro ? 'Pro' : 'Free'}</strong>
+              <span>Email</span>
+              <strong>{form.email || 'Не указан'}</strong>
             </div>
             <div className="profile-summary-row">
-              <span>Доступ к чату</span>
-              <strong>
-                {isPro
-                  ? 'Безлимитные сообщения, Nexus 3.8 и глубокий режим'
-                  : `${dailyRemaining ?? 0} из ${dailyLimit ?? 0} сообщений осталось сегодня`}
-              </strong>
+              <span>Текущий план</span>
+              <strong>{planName}</strong>
+            </div>
+          </div>
+
+          <div className={`profile-plan-card ${isPro ? 'is-pro' : ''}`}>
+            <div className="profile-section-head">
+              <h3>Тариф и действия</h3>
+            </div>
+
+            <div className="profile-plan-head">
+              <span className={`plan-pill ${isPro ? 'plan-pill-pro' : 'plan-pill-free'}`}>
+                {isPro ? <CrownIcon size={13} /> : <ShieldIcon size={13} />}
+                {planLabel}
+              </span>
+              <span className="profile-plan-note">
+                {isPro ? 'Активен сейчас' : 'Можно улучшить'}
+              </span>
+            </div>
+
+            <div className="profile-plan-stats">
+              <div className="profile-inline-stat">
+                <span>Осталось сегодня</span>
+                <strong>{isPro ? 'Без лимита' : `${dailyRemaining ?? 0}`}</strong>
+              </div>
+              <div className="profile-inline-stat">
+                <span>Использовано</span>
+                <strong>{isPro ? 'Не ограничено' : `${dailyUsed}${dailyLimit ? ` / ${dailyLimit}` : ''}`}</strong>
+              </div>
+            </div>
+
+            <div className="profile-stack-actions">
+              <button
+                type="button"
+                className="btn-ghost glass-shimmer subscription-primary-action"
+                onClick={onOpenSubscription}
+              >
+                Открыть тариф
+              </button>
+              <button
+                type="button"
+                className="btn-ghost glass-shimmer"
+                onClick={onClose}
+              >
+                Закрыть
+              </button>
             </div>
           </div>
         </aside>
@@ -244,32 +332,31 @@ export default function ProfileModal({
           <div className="profile-form-section">
             <div className="profile-section-head">
               <h3>Основные данные</h3>
-              <p>Управляйте контактами и тем, как вас видят в рабочем пространстве.</p>
             </div>
 
-            <label className="auth-field">
-              <span>Логин</span>
-              <div className="auth-field-control">
-                <input value={user?.username || ''} disabled />
-              </div>
-            </label>
-
-            <label className="auth-field">
-              <span>Email</span>
-              <div className="auth-field-control">
-                <input
-                  type="email"
-                  name="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  required
-                  autoComplete="email"
-                  placeholder="you@studio.ai"
-                />
-              </div>
-            </label>
-
             <div className="profile-grid">
+              <label className="auth-field">
+                <span>Логин</span>
+                <div className="auth-field-control">
+                  <input value={user?.username || ''} disabled />
+                </div>
+              </label>
+
+              <label className="auth-field">
+                <span>Email</span>
+                <div className="auth-field-control">
+                  <input
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={handleChange}
+                    required
+                    autoComplete="email"
+                    placeholder="you@studio.ai"
+                  />
+                </div>
+              </label>
+
               <label className="auth-field">
                 <span>Имя</span>
                 <div className="auth-field-control">
@@ -298,64 +385,54 @@ export default function ProfileModal({
             </div>
           </div>
 
-          <div className="profile-form-section subscription-section">
+          <div className="profile-form-section">
             <div className="profile-section-head">
-              <h3>Подписка</h3>
-              <p>Управляйте тарифом и доступом к расширенным возможностям чата.</p>
+              <h3>Безопасность</h3>
             </div>
 
-            <div className={`subscription-hero ${isPro ? 'is-pro' : 'is-free'}`}>
-              <div className="subscription-hero-copy">
-                <span className="brand-kicker">Current plan</span>
-                <h4>{isPro ? 'NexusAI Pro' : 'NexusAI Free'}</h4>
-                <p>
-                  {isPro
-                    ? 'Безлимитные сообщения, старшая модель Nexus 3.8 и глубокий режим.'
-                    : `Базовый чат и до ${dailyLimit ?? 0} сообщений в день.`}
-                </p>
-              </div>
-              <div className="subscription-hero-status">
-                <span className={`plan-pill ${isPro ? 'plan-pill-pro' : 'plan-pill-free'}`}>
-                  {isPro ? <CrownIcon size={13} /> : <ShieldIcon size={13} />}
-                  {isPro ? 'Pro' : 'Free'}
-                </span>
-                <span className="subscription-usage-text">
-                  {isPro ? 'Статус активен' : `Сегодня использовано ${dailyUsed}${dailyLimit ? ` / ${dailyLimit}` : ''}`}
-                </span>
-              </div>
-            </div>
-
-            <div className="subscription-plan-grid">
-              <div className={`subscription-plan-card ${!isPro ? 'is-current' : ''}`}>
-                <div className="subscription-plan-head">
-                  <span className="plan-pill plan-pill-free">
-                    <ShieldIcon size={13} />
-                    Free
-                  </span>
-                  {!isPro && <span className="subscription-current-marker">Текущий</span>}
+            <div className="profile-grid profile-grid-security">
+              <label className="auth-field">
+                <span>Текущий пароль</span>
+                <div className="auth-field-control">
+                  <input
+                    type="password"
+                    name="current_password"
+                    value={form.current_password}
+                    onChange={handleChange}
+                    autoComplete="current-password"
+                    placeholder="Введите текущий пароль"
+                  />
                 </div>
-                <p>Базовый доступ к NexusAI и дневной лимит сообщений.</p>
-              </div>
+              </label>
 
-              <div className={`subscription-plan-card ${isPro ? 'is-current is-pro' : 'is-pro'}`}>
-                <div className="subscription-plan-head">
-                  <span className="plan-pill plan-pill-pro">
-                    <CrownIcon size={13} />
-                    Pro
-                  </span>
-                  {isPro && <span className="subscription-current-marker">Текущий</span>}
+              <label className="auth-field">
+                <span>Новый пароль</span>
+                <div className="auth-field-control">
+                  <input
+                    type="password"
+                    name="new_password"
+                    value={form.new_password}
+                    onChange={handleChange}
+                    autoComplete="new-password"
+                    placeholder="Введите новый пароль"
+                  />
                 </div>
-                <p>Безлимитный чат, глубокий режим и доступ к Nexus 3.8.</p>
-              </div>
+              </label>
             </div>
 
-            <button
-              type="button"
-              className="btn-ghost glass-shimmer subscription-primary-action"
-              onClick={onOpenSubscription}
-            >
-              Открыть управление тарифом
-            </button>
+            <label className="auth-field">
+              <span>Подтверждение нового пароля</span>
+              <div className="auth-field-control">
+                <input
+                  type="password"
+                  name="new_password2"
+                  value={form.new_password2}
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  placeholder="Повторите новый пароль"
+                />
+              </div>
+            </label>
           </div>
 
           {(localError || error) && (

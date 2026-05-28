@@ -13,6 +13,12 @@ export default function AuthScreen({ onLogin, onRegister, loading, error, onClea
 
   const switchMode = (next) => {
     setMode(next)
+    setForm(prev => ({
+      username: prev.username,
+      email: next === 'register' ? prev.email : '',
+      password: '',
+      password2: '',
+    }))
     setLocalError('')
     onClearError?.()
   }
@@ -27,17 +33,30 @@ export default function AuthScreen({ onLogin, onRegister, loading, error, onClea
   async function submit(e) {
     e.preventDefault()
     setLocalError('')
+
+    const username = form.username.trim()
+    const email = form.email.trim()
+
+    if (!username) {
+      setLocalError('Введите логин')
+      return
+    }
+
     try {
       if (mode === 'login') {
-        await onLogin(form.username.trim(), form.password)
+        await onLogin(username, form.password)
       } else {
+        if (!email) {
+          setLocalError('Введите email')
+          return
+        }
         if (form.password !== form.password2) {
           setLocalError('Пароли не совпадают')
           return
         }
         await onRegister({
-          username: form.username.trim(),
-          email: form.email.trim(),
+          username,
+          email,
           password: form.password,
           password2: form.password2,
         })
@@ -52,14 +71,9 @@ export default function AuthScreen({ onLogin, onRegister, loading, error, onClea
       <div className="auth-hero">
         <div className="auth-hero-badge">
           <NexusLogo size={22} />
-          Nexus Access
+          NexusAI
         </div>
-        <h2>{mode === 'login' ? 'Продолжить работу' : 'Создать пространство'}</h2>
-        <p>
-          {mode === 'login'
-            ? 'Вернитесь в рабочую сессию, чаты и настройки профиля за пару секунд.'
-            : 'Зарегистрируйтесь, чтобы сохранять диалоги, аватар и персональные настройки.'}
-        </p>
+        <h2>{mode === 'login' ? 'Вход' : 'Регистрация'}</h2>
       </div>
 
       <div className="auth-header">
@@ -151,12 +165,6 @@ export default function AuthScreen({ onLogin, onRegister, loading, error, onClea
         <button className="auth-submit glass-shimmer" type="submit" disabled={loading}>
           {loading ? 'Подождите…' : mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
         </button>
-
-        <div className="auth-footnote">
-          {mode === 'login'
-            ? 'Откроем ваши сохранённые диалоги и настройки оформления.'
-            : 'После регистрации локальные настройки интерфейса сохранятся автоматически.'}
-        </div>
       </form>
     </div>
   )

@@ -22,6 +22,7 @@ export default function ProfileMenu({
   const popoverRef = useRef(null)
   const [popoverStyle, setPopoverStyle] = useState(null)
   const [popoverPlacement, setPopoverPlacement] = useState('above')
+  const isPro = Boolean(user?.subscription?.is_pro)
   const planLabel = user?.subscription?.is_pro ? 'Pro' : 'Free'
   const initials = useMemo(() => (user?.username || 'Г')[0].toUpperCase(), [user?.username])
 
@@ -186,7 +187,7 @@ export default function ProfileMenu({
         aria-expanded={isOpen}
         aria-label={user ? 'Открыть меню профиля' : 'Открыть меню аккаунта'}
       >
-        <div className="avatar-circle">
+        <div className={`avatar-circle ${isPro ? 'avatar-circle-pro' : ''}`}>
           {avatarUrl ? (
             <img src={avatarUrl} alt="Аватар пользователя" />
           ) : (
@@ -197,6 +198,7 @@ export default function ProfileMenu({
           <div className="sidebar-profile-copy">
             <div className="sidebar-profile-heading">
               <div className="sidebar-profile-name">{user?.username || 'Гость'}</div>
+              {isPro && <span className="sidebar-pro-pill">PRO</span>}
             </div>
             <div className="sidebar-profile-email">
               {user?.email || 'Войдите, чтобы сохранить тариф'}

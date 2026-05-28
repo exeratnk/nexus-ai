@@ -31,6 +31,9 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     subscription = serializers.SerializerMethodField()
+    current_password = serializers.CharField(write_only=True, required=False, allow_blank=True, style={'input_type': 'password'})
+    new_password = serializers.CharField(write_only=True, required=False, allow_blank=True, style={'input_type': 'password'})
+    new_password2 = serializers.CharField(write_only=True, required=False, allow_blank=True, style={'input_type': 'password'})
 
     class Meta:
         model = User
@@ -44,8 +47,50 @@ class ProfileSerializer(serializers.ModelSerializer):
             'date_joined',
             'updated',
             'subscription',
+            'current_password',
+            'new_password',
+            'new_password2',
         )
         read_only_fields = ('id', 'date_joined', 'updated')
+
+    def validate(self, attrs):
+        current_password = attrs.get('current_password', '')
+        new_password = attrs.get('new_password', '')
+        new_password2 = attrs.get('new_password2', '')
+
+        password_fields_filled = any([current_password, new_password, new_password2])
+        if not password_fields_filled:
+            return attrs
+
+        if not current_password:
+            raise serializers.ValidationError({'current_password': 'Введите текущий пароль.'})
+        if not new_password:
+            raise serializers.ValidationError({'new_password': 'Введите новый пароль.'})
+        if not new_password2:
+            raise serializers.ValidationError({'new_password2': 'Подтвердите новый пароль.'})
+        if new_password != new_password2:
+            raise serializers.ValidationError({'new_password': 'Новые пароли не совпадают.'})
+        if not self.instance or not self.instance.check_password(current_password):
+            raise serializers.ValidationError({'current_password': 'Текущий пароль введён неверно.'})
+        if current_password == new_password:
+            raise serializers.ValidationError({'new_password': 'Новый пароль должен отличаться от текущего.'})
+
+        validate_password(new_password, self.instance)
+        return attrs
+
+    def update(self, instance, validated_data):
+        current_password = validated_data.pop('current_password', '')
+        new_password = validated_data.pop('new_password', '')
+        validated_data.pop('new_password2', '')
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        if current_password and new_password:
+            instance.set_password(new_password)
+
+        instance.save()
+        return instance
 
     def get_subscription(self, obj):
         subscription = ensure_subscription(obj)

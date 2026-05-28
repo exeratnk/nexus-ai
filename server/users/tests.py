@@ -139,6 +139,53 @@ class AuthChatFlowTests(APITestCase):
         )
         self.assertEqual(refresh_response.status_code, status.HTTP_401_UNAUTHORIZED)
 
+    def test_user_can_change_password_from_profile(self):
+        self.authenticate()
+
+        response = self.client.patch(
+            reverse('profile'),
+            {
+                'current_password': 'strong-password-123',
+                'new_password': 'better-password-456',
+                'new_password2': 'better-password-456',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.client.credentials()
+        old_login_response = self.client.post(
+            reverse('login'),
+            {'username': 'tester', 'password': 'strong-password-123'},
+            format='json',
+        )
+        self.assertEqual(old_login_response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        new_login_response = self.client.post(
+            reverse('login'),
+            {'username': 'tester', 'password': 'better-password-456'},
+            format='json',
+        )
+        self.assertEqual(new_login_response.status_code, status.HTTP_200_OK)
+        self.assertIn('access', new_login_response.data)
+
+    def test_user_cannot_change_password_with_wrong_current_password(self):
+        self.authenticate()
+
+        response = self.client.patch(
+            reverse('profile'),
+            {
+                'current_password': 'wrong-password',
+                'new_password': 'better-password-456',
+                'new_password2': 'better-password-456',
+            },
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('current_password', response.data)
+
     @patch('users.views.complete_chat')
     def test_llm_chat_endpoint_returns_model_response(self, complete_chat_mock):
         complete_chat_mock.return_value = 'Локальная модель ответила.'
